@@ -26,7 +26,7 @@
 					boardheight: 451,
 					bmcache: $("#bmcache")[0],
 					alternateAnimationSpeed: 200,
-					players: { me: { cr: 1, cc: 2, x: 0, y: 0, color: "red", dir: "s", altDir: 0, isStopping: 0, isStopped: 1 } },
+					players: { me: { cr: 1, cc: 2, x: 0, y: 0, color: "red", dir: "s", altDir: 0, isStopping: 0, isStopped: 1, speed: "fastest" } },
 					entityBitmap: {},
 					speed: { normal: 0.5, fast: 0.75, fastest: 1 }
 				};
@@ -57,20 +57,24 @@
 					var x = gameInfo.players["me"].x;
 					var w = gameInfo.players["me"].w;
 					var h = gameInfo.players["me"].h;
+					var ptop = gameInfo.players["me"].ptop;
+					var pleft = gameInfo.players["me"].pleft;
+					var pright = gameInfo.players["me"].pright;
+					var pbottom = gameInfo.players["me"].pbottom;
 					var dir = gameInfo.players["me"].dir;
 					var currentRow = gameInfo.players["me"].cr;
 					var currentCol = gameInfo.players["me"].cc;
 					var isStopped = gameInfo.players["me"].isStopped;
 					var isStopping = gameInfo.players["me"].isStopping;
 					var collisiony;
-					var speed = gameInfo.speed.fast;
+					var collisionx;
+					var speed = gameInfo.speed[gameInfo.players["me"].speed];
 					
 						if (!isStopped) {
 							switch (dir) {
 								case "u":
 									// UP
-									collisiony = Math.floor(((Math.floor(y) - 23) / 30));
-									lastOccupiedRowBlock = Math.floor(((y + h - 20 - speed) / 30));
+									collisiony = Math.floor(((ptop - 20) / 30));
 									if (collisiony > 0) {
 										if (gameInfo.board[collisiony][currentCol] != "e") {
 											drawPlayer(gameInfo.players["me"].color, x, (currentRow * 30) + 22, dir, 0);
@@ -90,14 +94,34 @@
 									}
 									break;
 								case "r":
+									// RIGHT
+									collisionx = Math.floor(((pright - 20) / 30));
+									if (collisionx < 18) {
+										if (gameInfo.board[currentRow][collisionx] != "e") {
+											drawPlayer(gameInfo.players["me"].color, x, y, dir, 0);
+											gameInfo.players["me"].isStopping = 0;
+											gameInfo.players["me"].isStopped = 1;
+										} else {
+											movePlayer(x, y, speed, dir);
+										}
+									} else {
+										if (x+w+speed >= 589) {
+											drawPlayer(gameInfo.players["me"].color, 589-w, y, dir, 0);
+											gameInfo.players["me"].isStopping = 0;
+											gameInfo.players["me"].isStopped = 1;
+										} else {
+											movePlayer(x, y, speed, dir);
+										}
+									}
 									break;
 								case "d":
 									// DOWN
-									collisiony = Math.floor(((Math.floor(y) + h - 17) / 30));
-									lastOccupiedRowBlock = Math.floor(((y - 20 - speed) / 30));
+									collisiony = Math.floor(((pbottom - 20) / 30));
+									//console.log(collisiony);
+									//console.log(pbottom);
 									if (collisiony < 14) {
 										if (gameInfo.board[collisiony][currentCol] != "e") {
-											drawPlayer(gameInfo.players["me"].color, x, (currentRow * 30) + 30 + 20 - h - 2, dir, 0);
+											drawPlayer(gameInfo.players["me"].color, x, y, dir, 0);
 											gameInfo.players["me"].isStopping = 0;
 											gameInfo.players["me"].isStopped = 1;
 										} else {
@@ -114,6 +138,25 @@
 									}
 									break;
 								case "l":
+									// LEFT
+									collisionx = Math.floor(((pleft - 20) / 30));
+									if (collisionx > 0) {
+										if (gameInfo.board[currentRow][collisionx] != "e") {
+											drawPlayer(gameInfo.players["me"].color, x, y, dir, 0);
+											gameInfo.players["me"].isStopping = 0;
+											gameInfo.players["me"].isStopped = 1;
+										} else {
+											movePlayer(x, y, speed, dir);
+										}
+									} else {
+										if (x <= 23) {
+											drawPlayer(gameInfo.players["me"].color, 22, y, dir, 0);
+											gameInfo.players["me"].isStopping = 0;
+											gameInfo.players["me"].isStopped = 1;
+										} else {
+											movePlayer(x, y, speed, dir);
+										}
+									}
 									break;
 							}
 						
@@ -165,15 +208,26 @@
 				function drawPlayer(item, x, y, direction, alt) {
 					var w = gameInfo.entityBitmap[item][direction + alt].w;
 					var h = gameInfo.entityBitmap[item][direction + alt].h;
-
+					var speed = gameInfo.speed[gameInfo.players["me"].speed];
 					gameInfo.players["me"].x = x;
 					gameInfo.players["me"].y = y;
 					gameInfo.players["me"].w = w;
 					gameInfo.players["me"].h = h;
+					
+					gameInfo.players["me"].ptop = Math.floor(y - 3 - speed);
+					gameInfo.players["me"].pleft = Math.floor(x - 3 - speed);
+					gameInfo.players["me"].pright = Math.ceil(x + w + speed);
+					gameInfo.players["me"].pbottom = Math.ceil(y + h + speed);
+				
 					var currentRowTopBody = Math.floor((y - 20) / 30);
 					var currentColLeftBody = Math.floor((x - 20) / 30);
-					var currentRowBottomBody = Math.floor((y + h - 18) / 30);
-					var currentColRightBody = Math.floor((x + w - 18) / 30);
+					var currentRowBottomBody = Math.floor((y + h - 20) / 30);
+					var currentColRightBody = Math.floor((x + w - 20) / 30);
+					
+					if (gameInfo.players["me"].cr != currentRowTopBody || gameInfo.players["me"].cc != currentColLeftBody ) {
+						console.log("crt1");
+						clearBlock(gameInfo.players["me"].cr, gameInfo.players["me"].cc);
+					}
 					// If going up or down, clear any blocks player might be in (max 2)
 					// x y coordinates of players are top left of sprite. legs or right side might be in diff. blocks.
 					if (direction == "u" || direction == "d") {
@@ -200,7 +254,7 @@
 					ctx.drawImage(bmcache, gameInfo.entityBitmap[item][direction + alt].x, gameInfo.entityBitmap[item][direction + alt].y, w, h, x, y, w, h);
 				}
 				function clearBlock(r,c) {
-					console.log("r: " + r + " c: " + c);
+					//console.log("r: " + r + " c: " + c);
 					var y = 20;
 					var x = 20;
 					var w = 31;
@@ -331,8 +385,11 @@
 						}
 					} else if (e.keyCode == 39) {
 						e.preventDefault();
-						gameInfo.players["me"].dir = "r";
-						gameInfo.players["me"].altDir = "0";
+						if (gameInfo.players["me"].dir != "r" || gameInfo.players["me"].isStopped) {
+							gameInfo.players["me"].isStopped = 0;
+							gameInfo.players["me"].dir = "r";
+							gameInfo.players["me"].altDir = "0";
+						}
 					} else if (e.keyCode == 40) {
 						e.preventDefault();
 						if (gameInfo.players["me"].dir != "d" || gameInfo.players["me"].isStopped) {
@@ -342,8 +399,11 @@
 						}
 					} else if (e.keyCode == 37) {
 						e.preventDefault();
-						gameInfo.players["me"].dir = "l";
-						gameInfo.players["me"].altDir = "0";
+						if (gameInfo.players["me"].dir != "l" || gameInfo.players["me"].isStopped) {
+							gameInfo.players["me"].isStopped = 0;
+							gameInfo.players["me"].dir = "l";
+							gameInfo.players["me"].altDir = "0";
+						}
 					} else if (e.keyCode == 32) {
 						e.preventDefault();
 						layBomb();
