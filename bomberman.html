@@ -30,7 +30,7 @@
 					bmcache: $("#bmcache")[0],
 					alternateAnimationSpeed: 200,
 					players: { 
-						red: { cr: 1, cc: 2, x: 0, y: 0, color: "red", dir: "u", altDir: 0, isStopping: 0, isStopped: 1, speed: "fastest" }
+						red: { cr: 1, cc: 2, x: 0, y: 0, color: "red", dir: "u", altDir: 0, isStopping: 0, isStopped: 1, speed: "normal", changingDir: 0 }
 					},
 					entityBitmap: {},
 					speed: { normal: 0.5, fast: 0.75, fastest: 1 }
@@ -88,7 +88,7 @@
 									// UP
 									collision = (isCollision(tlp) || isCollision(trp));
 									if (collision) {
-										drawPlayer(color, x, y, dir, 0);
+										drawPlayer(color, x, Math.floor(y), dir, 0);
 										player.isStopping = 0;
 										player.isStopped = 1;
 									} else {
@@ -121,7 +121,7 @@
 									// LEFT
 									collision = (isCollision(ltp) || isCollision(lbp));
 									if (collision) {
-										drawPlayer(color, x, y, dir, 0);
+										drawPlayer(color, Math.floor(x), y, dir, 0);
 										player.isStopping = 0;
 										player.isStopped = 1;
 									} else {
@@ -137,10 +137,9 @@
 					window.requestAnimationFrame(mainRender);
 				}
 				function isCollision(pair) {
-					var row = Math.floor((pair.y - 20) / 30) + 1;
-					var col = Math.floor((pair.x - 20) / 30) + 1;
-					console.log(row + " " + col);
-					console.log("collision: " + (gameInfo.board[row][col] != "e"));
+					var row = Math.floor((pair.y - gameInfo.boardy) / 30) + 1;
+					var col = Math.floor((pair.x - gameInfo.boardx) / 30) + 1;
+					//console.log(row + " " + col + " " + "collision: " + (gameInfo.board[row][col] != "e") + " " + gameInfo.players[gameInfo.me].dir);
 					return (gameInfo.board[row][col] != "e");
 				}
 				function movePlayer(color, x, y, speed, dir) {
@@ -166,7 +165,12 @@
 					drawPlayer(color, x, y, dir, altDir);
 				}
 				
-				
+				function layBomb() {
+					var center = gameInfo.players[gameInfo.me].c;
+					var row = Math.floor((center.y - 20) / 30) + 1;
+					var col = Math.floor((center.x - 20) / 30) + 1;
+					gameInfo.board[row][col] = "a";
+				}
 				
 				function drawItem(item, x, y) {
 					ctx.drawImage(bmcache, gameInfo.entityBitmap[item].x, gameInfo.entityBitmap[item].y, gameInfo.entityBitmap[item].w, gameInfo.entityBitmap[item].h, x, y, gameInfo.entityBitmap[item].w, gameInfo.entityBitmap[item].h);
@@ -174,39 +178,66 @@
 				function drawPlayer(color, x, y, direction, alt) {
 					var w = gameInfo.entityBitmap[color][direction + alt].w;
 					var h = gameInfo.entityBitmap[color][direction + alt].h;
-					var speed = gameInfo.speed[gameInfo.players[color].speed];
-					gameInfo.players[color].x = x;
-					gameInfo.players[color].y = y;
-					gameInfo.players[color].w = w;
-					gameInfo.players[color].h = h;
+					var player = gameInfo.players[color];
+					var speed = Math.ceil(gameInfo.speed[player.speed]);
+
+					player.w = w;
+					player.h = h;
+					
+					// Center
+					player.c = { x: Math.floor((w / 2) + x), y: Math.floor((h / 2) + y) };
 					
 					// Top left pair
-					gameInfo.players[color].tlp = { x: x, y: y-speed }
+					player.tlp = { x: x, y: Math.floor(y-1-speed) };
 					
 					// Top right pair
-					gameInfo.players[color].trp = { x: x+w-1 , y: y-speed  }
+					player.trp = { x: x+w-1 , y: Math.floor(y-1-speed)  };
 					
 					// Right top pair
-					gameInfo.players[color].rtp = { x: x+w-1+speed, y: y }
+					player.rtp = { x: x+w-1+speed, y: y };
 					
 					// Right bottom pair
-					gameInfo.players[color].rbp = { x: x+w-1+speed, y: y+h-1 }
+					player.rbp = { x: x+w-1+speed, y: y+h-1 };
 					
 					// Bottom right pair
-					gameInfo.players[color].brp = { x: x+w-1, y: y+h-1+speed }
+					player.brp = { x: x+w-1, y: y+h-1+speed };
 					
 					// Bottom left pair
-					gameInfo.players[color].blp = { x: x, y: y+h-1+speed }
+					player.blp = { x: x, y: y+h-1+speed };
 					
 					// Left bottom pair
-					gameInfo.players[color].lbp = { x: x-speed, y: y+h-1 }
+					player.lbp = { x: Math.floor(x-1-speed), y: y+h-1 };
 					
 					// Left top pair
-					gameInfo.players[color].ltp = { x: x-speed, y: y }
+					player.ltp = { x: Math.floor(x-1-speed), y: y };
 
+					//console.log(direction + " " + player.changingDir);
+					if (player.changingDir) {
+						//console.log("changingDir");
+						var newXY = correctPlayerPosition();
+						x = newXY.x;
+						y = newXY.y;
+						player.changingDir = 0;
+					}
+					player.x = x;
+					player.y = y;
+					
 					ctx.drawImage(bmcache, gameInfo.entityBitmap[color][direction + alt].x, gameInfo.entityBitmap[color][direction + alt].y, w, h, x, y, w, h);
 				}
 				
+				// This function is called when user changes direction, once, to avoid sprite shifting position into another block.
+				// For example, walking right until sprite hits a block, sprite changes direction to down, half of body is in wall.
+				// Only called from up and down triggers since sprite is wider than he is thicker. w of [d|u] > w of [l|r]
+				function correctPlayerPosition() {
+					var me = gameInfo.players[gameInfo.me];
+					var x = me.x;
+					var y = me.y;
+					var collisionRight = (isCollision(me.rtp) || isCollision(me.rbp));
+					//console.log(collisionRight + " " + me.rtp.x);
+					if (collisionRight) { x = (Math.floor(((x - gameInfo.boardx) / 30)) * 30) + 21; }
+					return { x: x, y: y };
+				}
+								
 				function loadBoardTiles() {
 					gameInfo.board[0] = "ooooooooooooooooooooo";
 					gameInfo.board[1] = "oeebbbbbbeeebbbbbbeeo";
@@ -234,7 +265,7 @@
 					gameInfo.entityBitmap["armor"] = { x: 36, y: 203, w: 22, h: 27 };
 					gameInfo.entityBitmap["speed"] = { x: 1, y: 62, w: 30, h: 22 };
 					gameInfo.entityBitmap["exp"] = { x: 4, y: 85, w: 24, h: 26 };
-					gameInfo.entityBitmap["abomb"] = { x: 0, y: 113, w: 30, h: 30 };
+					gameInfo.entityBitmap["a"] = { x: 0, y: 112, w: 30, h: 31 };
 					
 					var colors = [ "pink", "cyan", "red", "yellow", "blue", "lime", "gold", "green" ];
 					var y = 0;
@@ -321,9 +352,11 @@
 				
 				
 				$(document).keyup(function(e) {
-					console.log("stopped");
-					var player = gameInfo.players[gameInfo.me];
-					player.isStopping = 1;
+					//console.log("stopped");
+					if (e.keyCode != 32) {
+						var player = gameInfo.players[gameInfo.me];
+						player.isStopping = 1;
+					}
 				});
 				$(document).keydown(function(e) {
 					// Up - Right - Down - Left
@@ -331,6 +364,7 @@
 					if (e.keyCode == 38) {
 						e.preventDefault();
 						if (player.dir != "u" || player.isStopped) {
+							player.changingDir = (player.dir != "u" ? 1 : 0);
 							player.isStopped = 0;
 							player.dir = "u";
 							player.altDir = 0;
@@ -345,6 +379,7 @@
 					} else if (e.keyCode == 40) {
 						e.preventDefault();
 						if (player.dir != "d" || player.isStopped) {
+							player.changingDir = (player.dir != "d" ? 1 : 0);
 							player.isStopped = 0;
 							player.dir = "d";
 							player.altDir = 0;
