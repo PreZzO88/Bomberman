@@ -22,11 +22,16 @@
 					bgcolor: "#4D7195",
 					boardcolor: "#0075B9",
 					board: [],
-					boardwidth: 571,
-					boardheight: 451,
+					boardx: 20,
+					boardy: 20,
+					boardw: 571,
+					boardh: 451,
+					me: "red",
 					bmcache: $("#bmcache")[0],
 					alternateAnimationSpeed: 200,
-					players: { me: { cr: 1, cc: 2, x: 0, y: 0, color: "red", dir: "s", altDir: 0, isStopping: 0, isStopped: 1, speed: "fastest" } },
+					players: { 
+						red: { cr: 1, cc: 2, x: 0, y: 0, color: "red", dir: "u", altDir: 0, isStopping: 0, isStopped: 1, speed: "fastest" }
+					},
 					entityBitmap: {},
 					speed: { normal: 0.5, fast: 0.75, fastest: 1 }
 				};
@@ -51,120 +56,96 @@
 					// active bombs
 					// active explosions
 					
-					//clearBoard();
-					// If not stopped, draw.
-					var y = gameInfo.players["me"].y;
-					var x = gameInfo.players["me"].x;
-					var w = gameInfo.players["me"].w;
-					var h = gameInfo.players["me"].h;
-					var ptop = gameInfo.players["me"].ptop;
-					var pleft = gameInfo.players["me"].pleft;
-					var pright = gameInfo.players["me"].pright;
-					var pbottom = gameInfo.players["me"].pbottom;
-					var dir = gameInfo.players["me"].dir;
-					var currentRow = gameInfo.players["me"].cr;
-					var currentCol = gameInfo.players["me"].cc;
-					var isStopped = gameInfo.players["me"].isStopped;
-					var isStopping = gameInfo.players["me"].isStopping;
-					var collisiony;
-					var collisionx;
-					var speed = gameInfo.speed[gameInfo.players["me"].speed];
+					// Clear board and redraw everything except empty spaces.
+					redrawBoard();
 					
+					var x, y, w, h, dir, currentRow, currentCol, isStopped, isStopping, collision, speed;
+					
+					for (color in gameInfo.players) {
+						var player = gameInfo.players[color];
+						x = player.x;
+						y = player.y;
+						w = player.w;
+						h = player.h;
+						dir = player.dir;
+						currentRow = player.cr;
+						currentCol = player.cc;
+						isStopped = player.isStopped;
+						isStopping = player.isStopping;
+						speed = gameInfo.speed[player.speed];
+						tlp = player.tlp;
+						trp = player.trp;
+						rtp = player.rtp;
+						rbp = player.rbp;
+						blp = player.blp;
+						brp = player.brp;
+						ltp = player.ltp;
+						lbp = player.lbp;
+						
 						if (!isStopped) {
 							switch (dir) {
 								case "u":
 									// UP
-									collisiony = Math.floor(((ptop - 20) / 30));
-									if (collisiony > 0) {
-										if (gameInfo.board[collisiony][currentCol] != "e") {
-											drawPlayer(gameInfo.players["me"].color, x, (currentRow * 30) + 22, dir, 0);
-											gameInfo.players["me"].isStopping = 0;
-											gameInfo.players["me"].isStopped = 1;
-										} else {
-											movePlayer(x, y, speed, dir);
-										}
+									collision = (isCollision(tlp) || isCollision(trp));
+									if (collision) {
+										drawPlayer(color, x, y, dir, 0);
+										player.isStopping = 0;
+										player.isStopped = 1;
 									} else {
-										if (y <= 23) {
-											drawPlayer(gameInfo.players["me"].color, x, 22, dir, 0);
-											gameInfo.players["me"].isStopping = 0;
-											gameInfo.players["me"].isStopped = 1;
-										} else {
-											movePlayer(x, y, speed, dir);
-										}
+										movePlayer(color, x, y, speed, dir);
 									}
 									break;
 								case "r":
 									// RIGHT
-									collisionx = Math.floor(((pright - 20) / 30));
-									if (collisionx < 18) {
-										if (gameInfo.board[currentRow][collisionx] != "e") {
-											drawPlayer(gameInfo.players["me"].color, x, y, dir, 0);
-											gameInfo.players["me"].isStopping = 0;
-											gameInfo.players["me"].isStopped = 1;
-										} else {
-											movePlayer(x, y, speed, dir);
-										}
+									collision = (isCollision(rtp) || isCollision(rbp));
+									if (collision) {
+										drawPlayer(color, x, y, dir, 0);
+										player.isStopping = 0;
+										player.isStopped = 1;
 									} else {
-										if (x+w+speed >= 589) {
-											drawPlayer(gameInfo.players["me"].color, 589-w, y, dir, 0);
-											gameInfo.players["me"].isStopping = 0;
-											gameInfo.players["me"].isStopped = 1;
-										} else {
-											movePlayer(x, y, speed, dir);
-										}
+										movePlayer(color, x, y, speed, dir);
 									}
 									break;
 								case "d":
 									// DOWN
-									collisiony = Math.floor(((pbottom - 20) / 30));
-									//console.log(collisiony);
-									//console.log(pbottom);
-									if (collisiony < 14) {
-										if (gameInfo.board[collisiony][currentCol] != "e") {
-											drawPlayer(gameInfo.players["me"].color, x, y, dir, 0);
-											gameInfo.players["me"].isStopping = 0;
-											gameInfo.players["me"].isStopped = 1;
-										} else {
-											movePlayer(x, y, speed, dir);
-										}
+									collision = (isCollision(blp) || isCollision(brp));
+									if (collision) {
+										drawPlayer(color, x, y, dir, 0);
+										player.isStopping = 0;
+										player.isStopped = 1;
 									} else {
-										if (y+h >= 469) {
-											drawPlayer(gameInfo.players["me"].color, x, 469-h, dir, 0);
-											gameInfo.players["me"].isStopping = 0;
-											gameInfo.players["me"].isStopped = 1;
-										} else {
-											movePlayer(x, y, speed, dir);
-										}
+										movePlayer(color, x, y, speed, dir);
 									}
 									break;
 								case "l":
 									// LEFT
-									collisionx = Math.floor(((pleft - 20) / 30));
-									if (collisionx > 0) {
-										if (gameInfo.board[currentRow][collisionx] != "e") {
-											drawPlayer(gameInfo.players["me"].color, x, y, dir, 0);
-											gameInfo.players["me"].isStopping = 0;
-											gameInfo.players["me"].isStopped = 1;
-										} else {
-											movePlayer(x, y, speed, dir);
-										}
+									collision = (isCollision(ltp) || isCollision(lbp));
+									if (collision) {
+										drawPlayer(color, x, y, dir, 0);
+										player.isStopping = 0;
+										player.isStopped = 1;
 									} else {
-										if (x <= 23) {
-											drawPlayer(gameInfo.players["me"].color, 22, y, dir, 0);
-											gameInfo.players["me"].isStopping = 0;
-											gameInfo.players["me"].isStopped = 1;
-										} else {
-											movePlayer(x, y, speed, dir);
-										}
+										movePlayer(color, x, y, speed, dir);
 									}
 									break;
 							}
-						
+						} else {
+							//console.log(color + " " + x + " " + y + " " + dir + " " + 0);
+							drawPlayer(color, x, y, dir, 0);
+						}
 					}
 					window.requestAnimationFrame(mainRender);
 				}
-				function movePlayer(x, y, speed, dir) {
+				function isCollision(pair) {
+					var row = Math.floor((pair.y - 20) / 30) + 1;
+					var col = Math.floor((pair.x - 20) / 30) + 1;
+					console.log(row + " " + col);
+					console.log("collision: " + (gameInfo.board[row][col] != "e"));
+					return (gameInfo.board[row][col] != "e");
+				}
+				function movePlayer(color, x, y, speed, dir) {
 					var elapsed = new Date().getTime() - ts;
+					var altDir = gameInfo.players[color].altDir;
 					switch (dir) {
 						case "u": y-=speed; break;
 						case "d": y+=speed; break;
@@ -173,14 +154,79 @@
 					}
 					if (elapsed >= gameInfo.alternateAnimationSpeed) {
 						ts = new Date().getTime();
-						gameInfo.players["me"].altDir++;
-						if (gameInfo.players["me"].altDir >= 3) { gameInfo.players["me"].altDir = 1; }
+						altDir++;
+						if (altDir >= 3) { altDir = 1; }
 					}
-					if (gameInfo.players["me"].isStopping) { gameInfo.players["me"].altDir = 0; gameInfo.players["me"].isStopping = 0; gameInfo.players["me"].isStopped = 1; }
-					drawPlayer(gameInfo.players["me"].color, x, y, dir, gameInfo.players["me"].altDir);
+					if (gameInfo.players[color].isStopping) {
+						gameInfo.players[color].altDir = 0;
+						gameInfo.players[color].isStopping = 0;
+						gameInfo.players[color].isStopped = 1;
+					}
+					gameInfo.players[color].altDir = altDir;
+					drawPlayer(color, x, y, dir, altDir);
 				}
 				
 				
+				
+				function drawItem(item, x, y) {
+					ctx.drawImage(bmcache, gameInfo.entityBitmap[item].x, gameInfo.entityBitmap[item].y, gameInfo.entityBitmap[item].w, gameInfo.entityBitmap[item].h, x, y, gameInfo.entityBitmap[item].w, gameInfo.entityBitmap[item].h);
+				}
+				function drawPlayer(color, x, y, direction, alt) {
+					var w = gameInfo.entityBitmap[color][direction + alt].w;
+					var h = gameInfo.entityBitmap[color][direction + alt].h;
+					var speed = gameInfo.speed[gameInfo.players[color].speed];
+					gameInfo.players[color].x = x;
+					gameInfo.players[color].y = y;
+					gameInfo.players[color].w = w;
+					gameInfo.players[color].h = h;
+					
+					// Top left pair
+					gameInfo.players[color].tlp = { x: x, y: y-speed }
+					
+					// Top right pair
+					gameInfo.players[color].trp = { x: x+w-1 , y: y-speed  }
+					
+					// Right top pair
+					gameInfo.players[color].rtp = { x: x+w-1+speed, y: y }
+					
+					// Right bottom pair
+					gameInfo.players[color].rbp = { x: x+w-1+speed, y: y+h-1 }
+					
+					// Bottom right pair
+					gameInfo.players[color].brp = { x: x+w-1, y: y+h-1+speed }
+					
+					// Bottom left pair
+					gameInfo.players[color].blp = { x: x, y: y+h-1+speed }
+					
+					// Left bottom pair
+					gameInfo.players[color].lbp = { x: x-speed, y: y+h-1 }
+					
+					// Left top pair
+					gameInfo.players[color].ltp = { x: x-speed, y: y }
+
+					ctx.drawImage(bmcache, gameInfo.entityBitmap[color][direction + alt].x, gameInfo.entityBitmap[color][direction + alt].y, w, h, x, y, w, h);
+				}
+				
+				function loadBoardTiles() {
+					gameInfo.board[0] = "ooooooooooooooooooooo";
+					gameInfo.board[1] = "oeebbbbbbeeebbbbbbeeo";
+					gameInfo.board[2] = "oewbwbwbwbwbwbwbwbweo";
+					gameInfo.board[3] = "obbbbbbbbbbbbbbbbbbbo";
+					gameInfo.board[4] = "obwbwbwbwbwbwbwbwbwbo";
+					gameInfo.board[5] = "obbbbbbbbbbbbbbbbbbbo";
+					gameInfo.board[6] = "obwbwbwbwbwbwbwbwbwbo";
+					gameInfo.board[7] = "oebbbbbbbbbbbbbbbbbeo";
+					gameInfo.board[8] = "oewbwbwbwbwbwbwbwbweo";
+					gameInfo.board[9] = "oebbbbbbbbbbbbbbbbbeo";
+					gameInfo.board[10] = "obwbwbwbwbwbwbwbwbwbo";
+					gameInfo.board[11] = "obbbbbbbbbbbbbbbbbbbo";
+					gameInfo.board[12] = "obwbwbwbwbwbwbwbwbwbo";
+					gameInfo.board[13] = "obbbbbbbbbbbbbbbbbbbo";
+					gameInfo.board[14] = "oewbwbwbwbwbwbwbwbweo";
+					gameInfo.board[15] = "oeebbbbbbeeebbbbbbeeo";
+					gameInfo.board[16] = "ooooooooooooooooooooo";
+					gameInfo.board = gameInfo.board.map(function(cols) { return cols.split(""); });
+				}
 				function loadEntityBitmap() {
 					gameInfo.entityBitmap["w"] = { x: 0, y: 30, w: 31, h: 31 };
 					gameInfo.entityBitmap["b"] = { x: 0, y: 0, w: 31, h: 31 };
@@ -202,104 +248,28 @@
 						y+= 25;
 					}
 				}
-				function drawItem(item, x, y) {
-					ctx.drawImage(bmcache, gameInfo.entityBitmap[item].x, gameInfo.entityBitmap[item].y, gameInfo.entityBitmap[item].w, gameInfo.entityBitmap[item].h, x, y, gameInfo.entityBitmap[item].w, gameInfo.entityBitmap[item].h);
-				}
-				function drawPlayer(item, x, y, direction, alt) {
-					var w = gameInfo.entityBitmap[item][direction + alt].w;
-					var h = gameInfo.entityBitmap[item][direction + alt].h;
-					var speed = gameInfo.speed[gameInfo.players["me"].speed];
-					gameInfo.players["me"].x = x;
-					gameInfo.players["me"].y = y;
-					gameInfo.players["me"].w = w;
-					gameInfo.players["me"].h = h;
-					
-					gameInfo.players["me"].ptop = Math.floor(y - 3 - speed);
-					gameInfo.players["me"].pleft = Math.floor(x - 3 - speed);
-					gameInfo.players["me"].pright = Math.ceil(x + w + speed);
-					gameInfo.players["me"].pbottom = Math.ceil(y + h + speed);
 				
-					var currentRowTopBody = Math.floor((y - 20) / 30);
-					var currentColLeftBody = Math.floor((x - 20) / 30);
-					var currentRowBottomBody = Math.floor((y + h - 20) / 30);
-					var currentColRightBody = Math.floor((x + w - 20) / 30);
-					
-					if (gameInfo.players["me"].cr != currentRowTopBody || gameInfo.players["me"].cc != currentColLeftBody ) {
-						console.log("crt1");
-						clearBlock(gameInfo.players["me"].cr, gameInfo.players["me"].cc);
-					}
-					// If going up or down, clear any blocks player might be in (max 2)
-					// x y coordinates of players are top left of sprite. legs or right side might be in diff. blocks.
-					if (direction == "u" || direction == "d") {
-						if (currentRowTopBody == currentRowBottomBody) {
-							console.log("cb1");
-							clearBlock(currentRowTopBody, currentColLeftBody);
-						} else {
-						console.log("cb2");
-							clearBlock(currentRowTopBody, currentColLeftBody);
-							clearBlock(currentRowBottomBody, currentColLeftBody);
-						}
-					} else {
-						if (currentColLeftBody == currentColRightBody) {
-						console.log("cb3");
-							clearBlock(currentRowTopBody, currentColLeftBody);
-						} else {
-						console.log("cb4");
-							clearBlock(currentRowTopBody, currentColLeftBody);
-							clearBlock(currentRowTopBody, currentColRightBody);
-						}
-					}
-					gameInfo.players["me"].cr = currentRowTopBody;
-					gameInfo.players["me"].cc = currentColLeftBody;
-					ctx.drawImage(bmcache, gameInfo.entityBitmap[item][direction + alt].x, gameInfo.entityBitmap[item][direction + alt].y, w, h, x, y, w, h);
-				}
-				function clearBlock(r,c) {
-					//console.log("r: " + r + " c: " + c);
-					var y = 20;
-					var x = 20;
-					var w = 31;
-					var h = 31;
+				function redrawBoard() {
+					// Board Fill
 					ctx.fillStyle = gameInfo.boardcolor;
-					// If block on top is not empty
-					if (r > 0) {
-						if (gameInfo.board[r - 1][c] != "e") { y = 21; }
+					ctx.fillRect(gameInfo.boardx,gameInfo.boardy,gameInfo.boardw,gameInfo.boardh);
+					
+					// Put all items on board except empty.
+					// Starting at row 1 and col 1 and ending 1 short of each due to outside border being "outside" area.
+					var x = gameInfo.boardx;
+					var y = gameInfo.boardy;
+					var item;
+					for (var r = 1; r < gameInfo.board.length-1; r++ ) {
+						for (var c = 1; c < gameInfo.board[r].length-1; c++) {
+							item = gameInfo.board[r][c];
+							if (item != "e") {
+								drawItem(item, x, y);
+							}
+							x += 30;
+						}
+						x = gameInfo.boardx;
+						y += 30;
 					}
-					// If block below is not empty (check if border-block)
-					if (r < 14) {
-						if (gameInfo.board[r + 1][c] != "e") { h = (y == 20 ? 30 : 29); }
-					} else {
-						h = (y == 20 ? 31 : 30);
-					}
-					// If block to the left is not empty
-					if (c > 0) {
-						if (gameInfo.board[r][c - 1] != "e") { x = 21; }
-					}
-					// If block to the right is not empty (check if border-block)
-					if (c < 18) {
-						if (gameInfo.board[r][c + 1] != "e") { w = (x == 20 ? 30 : 29); }
-					} else {
-						w = (x == 20 ? 31 : 30);
-					}
-					ctx.fillRect(x + (c * 30),y + (r * 30),w,h);
-					gameInfo.board[r][c] = "e";
-				}
-				function loadBoardTiles() {
-					gameInfo.board[0] = "eebbbbbbeeebbbbbbee";
-					gameInfo.board[1] = "ewbwbwbwbwbwbwbwbwe";
-					gameInfo.board[2] = "bbbbbbbbbbbbbbbbbbb";
-					gameInfo.board[3] = "bwbwbwbwbwbwbwbwbwb";
-					gameInfo.board[4] = "bbbbbbbbbbbbbbbbbbb";
-					gameInfo.board[5] = "bwbwbwbwbwbwbwbwbwb";
-					gameInfo.board[6] = "ebbbbbbbbbbbbbbbbbe";
-					gameInfo.board[7] = "ewbwbwbwbwbwbwbwbwe";
-					gameInfo.board[8] = "ebbbbbbbbbbbbbbbbbe";
-					gameInfo.board[9] = "bwbwbwbwbwbwbwbwbwb";
-					gameInfo.board[10] = "bbbbbbbbbbbbbbbbbbb";
-					gameInfo.board[11] = "bwbwbwbwbwbwbwbwbwb";
-					gameInfo.board[12] = "bbbbbbbbbbbbbbbbbbb";
-					gameInfo.board[13] = "ewbwbwbwbwbwbwbwbwe";
-					gameInfo.board[14] = "eebbbbbbeeebbbbbbee";
-					gameInfo.board = gameInfo.board.map(function(cols) { return cols.split(""); });
 				}
 				function prepare() {
 					ctx.clearRect ( 0 , 0 , ctx.canvas.width, ctx.canvas.height );
@@ -307,33 +277,13 @@
 					ctx.fillStyle = gameInfo.bgcolor;
 					ctx.fillRect(0,0,800,600);
 					
-					// Board
-					ctx.fillStyle = gameInfo.boardcolor;
-					ctx.fillRect(20,20,gameInfo.boardwidth,gameInfo.boardheight);
-					
 					loadEntityBitmap();				
 					loadBoardTiles();
-
-					var x = 20;
-					var y = 20;
-					for (var r = 0; r < 15; r++) {
-						for (var c = 0; c < 19; c++) {
-							if (gameInfo.board[r][c] != "e") {
-								drawItem(gameInfo.board[r][c], x, y);
-							}
-							x += 30;
-						}
-						// Reset x to left side.
-						x = 20;
-						y += 30;
-					}
-					clearBlock(0,3);
-					clearBlock(2,2);
-					clearBlock(3,0);
-					clearBlock(3,18);
-					clearBlock(4,0);
-					clearBlock(14,5);
-					drawPlayer("red",21,233, "r", 2);
+					
+					// Board
+					redrawBoard();
+					
+					drawPlayer("red",21,233, "d", 0);
 					for (var n = 0; n < 8; n++) {
 						drawBox(610,20 + (n * 57), 170, 50);
 					}
@@ -371,38 +321,40 @@
 				
 				
 				$(document).keyup(function(e) {
-				console.log("stopped");
-					gameInfo.players["me"].isStopping = 1;
+					console.log("stopped");
+					var player = gameInfo.players[gameInfo.me];
+					player.isStopping = 1;
 				});
 				$(document).keydown(function(e) {
 					// Up - Right - Down - Left
+					var player = gameInfo.players[gameInfo.me];
 					if (e.keyCode == 38) {
 						e.preventDefault();
-						if (gameInfo.players["me"].dir != "u" || gameInfo.players["me"].isStopped) {
-							gameInfo.players["me"].isStopped = 0;
-							gameInfo.players["me"].dir = "u";
-							gameInfo.players["me"].altDir = "0";
+						if (player.dir != "u" || player.isStopped) {
+							player.isStopped = 0;
+							player.dir = "u";
+							player.altDir = 0;
 						}
 					} else if (e.keyCode == 39) {
 						e.preventDefault();
-						if (gameInfo.players["me"].dir != "r" || gameInfo.players["me"].isStopped) {
-							gameInfo.players["me"].isStopped = 0;
-							gameInfo.players["me"].dir = "r";
-							gameInfo.players["me"].altDir = "0";
+						if (player.dir != "r" || player.isStopped) {
+							player.isStopped = 0;
+							player.dir = "r";
+							player.altDir = 0;
 						}
 					} else if (e.keyCode == 40) {
 						e.preventDefault();
-						if (gameInfo.players["me"].dir != "d" || gameInfo.players["me"].isStopped) {
-							gameInfo.players["me"].isStopped = 0;
-							gameInfo.players["me"].dir = "d";
-							gameInfo.players["me"].altDir = "0";
+						if (player.dir != "d" || player.isStopped) {
+							player.isStopped = 0;
+							player.dir = "d";
+							player.altDir = 0;
 						}
 					} else if (e.keyCode == 37) {
 						e.preventDefault();
-						if (gameInfo.players["me"].dir != "l" || gameInfo.players["me"].isStopped) {
-							gameInfo.players["me"].isStopped = 0;
-							gameInfo.players["me"].dir = "l";
-							gameInfo.players["me"].altDir = "0";
+						if (player.dir != "l" || player.isStopped) {
+							player.isStopped = 0;
+							player.dir = "l";
+							player.altDir = 0;
 						}
 					} else if (e.keyCode == 32) {
 						e.preventDefault();
