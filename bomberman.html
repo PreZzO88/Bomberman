@@ -26,11 +26,12 @@
 					boardy: 20,
 					boardw: 571,
 					boardh: 451,
+					assist: 4,
 					me: "red",
 					bmcache: $("#bmcache")[0],
 					alternateAnimationSpeed: 200,
 					players: { 
-						red: { cr: 1, cc: 2, x: 0, y: 0, color: "red", dir: "u", altDir: 0, isStopping: 0, isStopped: 1, speed: "normal", changingDir: 0 }
+						red: { x: 0, y: 0, color: "red", dir: "u", altDir: 0, c: 0, isStopping: 0, isStopped: 1, speed: "normal", changingDir: 0 }
 					},
 					entityBitmap: {},
 					speed: { normal: 0.5, fast: 0.75, fastest: 1 }
@@ -59,7 +60,7 @@
 					// Clear board and redraw everything except empty spaces.
 					redrawBoard();
 					
-					var x, y, w, h, dir, currentRow, currentCol, isStopped, isStopping, collision, speed;
+					var x, y, w, h, dir, isStopped, isStopping, speed, tlp, trp, rtp, rbp, blp, brp, ltp, lbp, assist;
 					
 					for (color in gameInfo.players) {
 						var player = gameInfo.players[color];
@@ -68,8 +69,6 @@
 						w = player.w;
 						h = player.h;
 						dir = player.dir;
-						currentRow = player.cr;
-						currentCol = player.cc;
 						isStopped = player.isStopped;
 						isStopping = player.isStopping;
 						speed = gameInfo.speed[player.speed];
@@ -81,35 +80,55 @@
 						brp = player.brp;
 						ltp = player.ltp;
 						lbp = player.lbp;
-						
+						assist = false;
 						if (!isStopped) {
 							switch (dir) {
 								case "u":
 									// UP
-									collision = (isCollision(tlp) || isCollision(trp));
-									if (collision) {
+									var collisiontlp = isCollision(tlp);
+									var collisiontrp = isCollision(trp);
+									if (collisiontlp || collisiontrp) {
 										drawPlayer(color, x, Math.floor(y), dir, 0);
-										player.isStopping = 0;
-										player.isStopped = 1;
+										if (collisiontlp != collisiontrp) { 
+											assist = checkForPlayerAssist(trp.x,dir,(collisiontlp ? trp.x : tlp.x));
+										}
+										if (assist != false) {
+											movePlayer(color, assist+1, y-speed, speed, dir);
+										} else {
+											player.isStopping = 0;
+											player.isStopped = 1;
+										}
 									} else {
 										movePlayer(color, x, y, speed, dir);
 									}
 									break;
 								case "r":
 									// RIGHT
-									collision = (isCollision(rtp) || isCollision(rbp));
-									if (collision) {
+									var collisionrtp = isCollision(rtp);
+									var collisionrbp = isCollision(rbp);
+									if (collisionrtp || collisionrbp) {
+										console.log(rtp);
 										drawPlayer(color, x, y, dir, 0);
-										player.isStopping = 0;
-										player.isStopped = 1;
+										if (collisionrtp != collisionrbp) { 
+											console.log(assist);
+											assist = checkForPlayerAssist(rbp.y,dir,(collisionrtp ? rbp.y : rtp.y));
+											console.log(assist);
+										}
+										if (assist != false) {
+											movePlayer(color, x+speed, assist+4, speed, dir);
+										} else {
+											player.isStopping = 0;
+											player.isStopped = 1;
+										}
 									} else {
 										movePlayer(color, x, y, speed, dir);
 									}
 									break;
 								case "d":
 									// DOWN
-									collision = (isCollision(blp) || isCollision(brp));
-									if (collision) {
+									var collisionblp = isCollision(blp);
+									var collisionbrp = isCollision(brp);
+									if (collisionblp || collisionbrp) {
 										drawPlayer(color, x, y, dir, 0);
 										player.isStopping = 0;
 										player.isStopped = 1;
@@ -119,8 +138,9 @@
 									break;
 								case "l":
 									// LEFT
-									collision = (isCollision(ltp) || isCollision(lbp));
-									if (collision) {
+									var collisionltp = isCollision(ltp);
+									var collisionlbp = isCollision(lbp);
+									if (collisionltp || collisionlbp) {
 										drawPlayer(color, Math.floor(x), y, dir, 0);
 										player.isStopping = 0;
 										player.isStopped = 1;
@@ -135,6 +155,46 @@
 						}
 					}
 					window.requestAnimationFrame(mainRender);
+				}
+				function checkForPlayerAssist(middlePoint,dir,successPoint) {
+					var middle, successCol, p;
+					var playerCenter = gameInfo.players[gameInfo.me].c;
+					switch (dir) {
+						case "u":
+						case "d":
+							middle = (Math.floor((middlePoint - gameInfo.boardx) / 30) * 30) + gameInfo.boardx;
+							successCol = (Math.floor((successPoint - gameInfo.boardx) / 30) * 30) + gameInfo.boardx;
+							p = "x";
+							break;
+						case "l":
+						case "r":
+							middle = (Math.floor((middlePoint - gameInfo.boardy) / 30) * 30) + gameInfo.boardy;
+							successCol = (Math.floor((successPoint - gameInfo.boardy) / 30) * 30) + gameInfo.boardy;
+							p = "y";
+							break;
+					}
+					
+					var diff = middle - playerCenter[p];
+					if (Math.abs(diff) > gameInfo.assist) {
+						// if diff is positive, means it was a left side trigger, check if empty space is to the left.
+						if (diff > gameInfo.assist && successCol < middle) {
+							// Left or Top Side triggered.
+							console.log("left top");
+							return successCol;
+						}
+						// if diff is negative, means it was a right side trigger, check if empty space is to the right.
+						else if (diff < (-1 * gameInfo.assist) && successCol == middle) {
+							// Right or Bottom side triggered.
+							console.log("right bottom");
+							return successCol;
+						}
+						else {
+							return false;
+						}
+					} else {
+						return false;
+					}
+					//console.log(col + " " + playerCenter.x);
 				}
 				function isCollision(pair) {
 					var row = Math.floor((pair.y - gameInfo.boardy) / 30) + 1;
@@ -175,54 +235,93 @@
 				function drawItem(item, x, y) {
 					ctx.drawImage(bmcache, gameInfo.entityBitmap[item].x, gameInfo.entityBitmap[item].y, gameInfo.entityBitmap[item].w, gameInfo.entityBitmap[item].h, x, y, gameInfo.entityBitmap[item].w, gameInfo.entityBitmap[item].h);
 				}
+				function calculatePlayerBoundaries(x, y, w, h, speed) {
+					var boundaries = {
+						// Center
+						c: { x: Math.floor((w / 2) + x), y: Math.floor((h / 2) + y) },
+						
+						// Top left pair
+						tlp: { x: x, y: Math.floor(y-1-speed) },
+						
+						// Top right pair
+						trp: { x: x+w-1 , y: Math.floor(y-1-speed) },
+						
+						// Right top pair
+						rtp: { x: x+w-1+speed, y: y },
+						
+						// Right bottom pair
+						rbp: { x: x+w-1+speed, y: y+h-1 },
+						
+						// Bottom right pair
+						brp: { x: x+w-1, y: y+h-1+speed },
+						
+						// Bottom left pair
+						blp: { x: x, y: y+h-1+speed },
+						
+						// Left bottom pair
+						lbp: { x: Math.floor(x-1-speed), y: y+h-1 },
+						
+						// Left top pair
+						ltp: { x: Math.floor(x-1-speed), y: y }
+					}
+					return boundaries;
+				}
 				function drawPlayer(color, x, y, direction, alt) {
 					var w = gameInfo.entityBitmap[color][direction + alt].w;
 					var h = gameInfo.entityBitmap[color][direction + alt].h;
 					var player = gameInfo.players[color];
 					var speed = Math.ceil(gameInfo.speed[player.speed]);
+					var boundaries = calculatePlayerBoundaries(x, y, w, h, speed);
 
-					player.w = w;
-					player.h = h;
-					
-					// Center
-					player.c = { x: Math.floor((w / 2) + x), y: Math.floor((h / 2) + y) };
-					
-					// Top left pair
-					player.tlp = { x: x, y: Math.floor(y-1-speed) };
-					
-					// Top right pair
-					player.trp = { x: x+w-1 , y: Math.floor(y-1-speed)  };
-					
-					// Right top pair
-					player.rtp = { x: x+w-1+speed, y: y };
-					
-					// Right bottom pair
-					player.rbp = { x: x+w-1+speed, y: y+h-1 };
-					
-					// Bottom right pair
-					player.brp = { x: x+w-1, y: y+h-1+speed };
-					
-					// Bottom left pair
-					player.blp = { x: x, y: y+h-1+speed };
-					
-					// Left bottom pair
-					player.lbp = { x: Math.floor(x-1-speed), y: y+h-1 };
-					
-					// Left top pair
-					player.ltp = { x: Math.floor(x-1-speed), y: y };
-
-					//console.log(direction + " " + player.changingDir);
 					if (player.changingDir) {
-						//console.log("changingDir");
-						var newXY = correctPlayerPosition();
-						x = newXY.x;
-						y = newXY.y;
-						player.changingDir = 0;
+						if (player.dir == "u" || player.dir == "d") {
+							// Get new x using old centre
+							var testNewX = player["c"].x - Math.floor(w/2);
+							boundaries = calculatePlayerBoundaries(testNewX, y, w, h, speed);
+							var collisionLeft = (isCollision(boundaries.ltp) || isCollision(boundaries.lbp));
+							var collisionRight = (isCollision(boundaries.rtp) || isCollision(boundaries.rbp));
+							if (collisionLeft || collisionRight) { x = (Math.floor(((x - gameInfo.boardx) / 30)) * 30) + gameInfo.boardx + 1; }
+							else { x = testNewX; }
+							boundaries = calculatePlayerBoundaries(x, y, w, h, speed);
+							player.changingDir = 0;
+						} else {
+							x = player["c"].x - Math.floor(w/2);
+							boundaries = calculatePlayerBoundaries(x, y, w, h, speed);
+							console.log(boundaries.rtp);
+							player.changingDir = 0;
+						}
 					}
+
 					player.x = x;
 					player.y = y;
-					
+					player.w = w;
+					player.h = h;
+					for (bound in boundaries) {
+						player[bound] = boundaries[bound];
+					}
 					ctx.drawImage(bmcache, gameInfo.entityBitmap[color][direction + alt].x, gameInfo.entityBitmap[color][direction + alt].y, w, h, x, y, w, h);
+					/*ctx.beginPath();
+					ctx.strokeStyle = "red";
+					ctx.moveTo(x,y);
+					ctx.lineTo(x+w-1,y);
+					ctx.lineTo(x+w-1,y+h-1);
+					ctx.lineTo(x,y+h-1);
+					ctx.lineTo(x,y);
+					ctx.closePath();
+					ctx.stroke();
+					
+					ctx.beginPath();
+					ctx.strokeStyle = "yellow";
+					ctx.moveTo(player.tlp.x,player.tlp.y);
+					ctx.lineTo(player.trp.x,player.trp.y);
+					ctx.lineTo(player.rtp.x,player.rbp.y);
+					ctx.lineTo(player.rbp.x,player.rbp.y);
+					ctx.lineTo(player.brp.x,player.brp.y);
+					ctx.lineTo(player.blp.x,player.blp.y);
+					ctx.lineTo(player.lbp.x,player.lbp.y);
+					ctx.lineTo(player.ltp.x,player.ltp.y);
+					ctx.closePath();
+					ctx.stroke();*/
 				}
 				
 				// This function is called when user changes direction, once, to avoid sprite shifting position into another block.
@@ -372,6 +471,7 @@
 					} else if (e.keyCode == 39) {
 						e.preventDefault();
 						if (player.dir != "r" || player.isStopped) {
+							player.changingDir = (player.dir != "r" ? 1 : 0);
 							player.isStopped = 0;
 							player.dir = "r";
 							player.altDir = 0;
@@ -387,6 +487,7 @@
 					} else if (e.keyCode == 37) {
 						e.preventDefault();
 						if (player.dir != "l" || player.isStopped) {
+							player.changingDir = (player.dir != "l" ? 1 : 0);
 							player.isStopped = 0;
 							player.dir = "l";
 							player.altDir = 0;
