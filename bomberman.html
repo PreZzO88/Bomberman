@@ -18,6 +18,7 @@
 				var ctx = $("#canvas")[0].getContext("2d");
 				var fpsctr = 0;
 				var ts = new Date().getTime();
+				var pressedKeys = { u: false, d: false, l: false, r: false };
 				var gameInfo = {
 					bgcolor: "#4D7195",
 					boardcolor: "#0075B9",
@@ -31,14 +32,17 @@
 					bmcache: $("#bmcache")[0],
 					alternateAnimationSpeed: 200,
 					players: { 
-						red: { x: 0, y: 0, color: "red", dir: "u", altDir: 0, c: 0, isStopping: 0, isStopped: 1, speed: "normal", changingDir: 0 }
+						red: { x: 0, y: 0, isDead: false, color: "red", dir: "d", altDir: 0, c: 0, isStopping: 0, isStopped: 1, speed: "normal", changingDir: 0, nobp: 0, noba: 2, expStr: 1 }
 					},
 					entityBitmap: {},
+					spawnPoints: [],
+					activeBombs: [],
 					speed: { normal: 0.5, fast: 0.75, fastest: 1 }
 				};
 
 				prepare();
-
+				
+				// Temporary - FPS counter
 				var timer = setInterval(
 					function() {
 						ctx.fillStyle = gameInfo.bgcolor;
@@ -49,7 +53,7 @@
 						fpsctr = 0;
 					}, 1000);
 				
-				
+				// Main loop
 				function mainRender() {
 					fpsctr++;
 					// players
@@ -60,102 +64,134 @@
 					// Clear board and redraw everything except empty spaces.
 					redrawBoard();
 					
-					var x, y, w, h, dir, isStopped, isStopping, speed, tlp, trp, rtp, rbp, blp, brp, ltp, lbp, assist;
+					var x, y, w, h, dir, isStopped, player, speed, assist, collision;
 					
 					for (color in gameInfo.players) {
-						var player = gameInfo.players[color];
-						x = player.x;
-						y = player.y;
-						w = player.w;
-						h = player.h;
-						dir = player.dir;
-						isStopped = player.isStopped;
-						isStopping = player.isStopping;
-						speed = gameInfo.speed[player.speed];
-						tlp = player.tlp;
-						trp = player.trp;
-						rtp = player.rtp;
-						rbp = player.rbp;
-						blp = player.blp;
-						brp = player.brp;
-						ltp = player.ltp;
-						lbp = player.lbp;
-						assist = false;
-						if (!isStopped) {
-							switch (dir) {
-								case "u":
-									// UP
-									var collisiontlp = isCollision(tlp);
-									var collisiontrp = isCollision(trp);
-									if (collisiontlp || collisiontrp) {
-										drawPlayer(color, x, Math.floor(y), dir, 0);
-										if (collisiontlp != collisiontrp) { 
-											assist = checkForPlayerAssist(trp.x,dir,(collisiontlp ? trp.x : tlp.x));
-										}
-										if (assist != false) {
-											movePlayer(color, assist+1, y-speed, speed, dir);
-										} else {
+						player = gameInfo.players[color];
+						if (!player.isDead) {
+							x = player.x;
+							y = player.y;
+							w = player.w;
+							h = player.h;
+							dir = player.dir;
+							isStopped = player.isStopped;
+							speed = gameInfo.speed[player.speed];
+							assist = false;
+							if (!isStopped) {
+								// If player has changed direction, adjust xy, checking for collisions.
+								if (player.changingDir) {
+									var newW = gameInfo.entityBitmap[color][dir + 0].w;
+									var newH = gameInfo.entityBitmap[color][dir + 0].h;
+									var testNewX = player["c"].x - Math.floor(newW/2);
+									if (player.dir == "u" || player.dir == "d") {
+										// Get new x using old centre
+										var boundaries = calculatePlayerBoundaries(testNewX, y, newW, newH, speed);
+										var collisionLeft = (isCollision(boundaries.ltp) || isCollision(boundaries.lbp));
+										var collisionRight = (isCollision(boundaries.rtp) || isCollision(boundaries.rbp));
+										if (collisionLeft || collisionRight) { x = (Math.floor(((x - gameInfo.boardx) / 30)) * 30) + gameInfo.boardx + 1; }
+										else { x = testNewX; }
+									} else {
+										x = testNewX;
+									}
+									player.changingDir = 0;
+									drawPlayer(color, x, y, dir, 0);
+								} else {
+									collision = checkForCollisions(player);
+									if (collision != false) {
+										if (collision.both) {
+											drawPlayer(color, x, y, dir, 0);
 											player.isStopping = 0;
 											player.isStopped = 1;
-										}
-									} else {
-										movePlayer(color, x, y, speed, dir);
-									}
-									break;
-								case "r":
-									// RIGHT
-									var collisionrtp = isCollision(rtp);
-									var collisionrbp = isCollision(rbp);
-									if (collisionrtp || collisionrbp) {
-										console.log(rtp);
-										drawPlayer(color, x, y, dir, 0);
-										if (collisionrtp != collisionrbp) { 
-											console.log(assist);
-											assist = checkForPlayerAssist(rbp.y,dir,(collisionrtp ? rbp.y : rtp.y));
-											console.log(assist);
-										}
-										if (assist != false) {
-											movePlayer(color, x+speed, assist+4, speed, dir);
 										} else {
-											player.isStopping = 0;
-											player.isStopped = 1;
+											assist = checkForPlayerAssist(collision.middle,dir,collision.empty);
+											if (assist != false) {
+												switch (dir) {
+													case "u":
+														movePlayer(color, assist+1, y-speed, speed, dir);
+														break;
+													case "d":
+														movePlayer(color, assist+1, y+speed, speed, dir);
+														break;
+													case "l":
+														movePlayer(color, x-speed, assist+4, speed, dir);
+														break;
+													case "r":
+														movePlayer(color, x+speed, assist+4, speed, dir);
+														break;
+												}
+											} else {
+												drawPlayer(color, x, y, dir, 0);
+												player.isStopping = 0;
+												player.isStopped = 1;
+											}
 										}
 									} else {
+										// If no collisions, move player.
 										movePlayer(color, x, y, speed, dir);
 									}
-									break;
-								case "d":
-									// DOWN
-									var collisionblp = isCollision(blp);
-									var collisionbrp = isCollision(brp);
-									if (collisionblp || collisionbrp) {
-										drawPlayer(color, x, y, dir, 0);
-										player.isStopping = 0;
-										player.isStopped = 1;
-									} else {
-										movePlayer(color, x, y, speed, dir);
-									}
-									break;
-								case "l":
-									// LEFT
-									var collisionltp = isCollision(ltp);
-									var collisionlbp = isCollision(lbp);
-									if (collisionltp || collisionlbp) {
-										drawPlayer(color, Math.floor(x), y, dir, 0);
-										player.isStopping = 0;
-										player.isStopped = 1;
-									} else {
-										movePlayer(color, x, y, speed, dir);
-									}
-									break;
+								}
+							} else {
+								// if not moving, just draw last known dir and non-moving position.
+								drawPlayer(color, x, y, dir, 0);
 							}
-						} else {
-							//console.log(color + " " + x + " " + y + " " + dir + " " + 0);
-							drawPlayer(color, x, y, dir, 0);
 						}
 					}
+					checkBombs();
 					window.requestAnimationFrame(mainRender);
 				}
+				
+				// Check for potential collisions for specified player.
+				function checkForCollisions(player) {
+					var x, y, w, h, dir, speed, player, pair1, pair2, point, boundaries;
+					player = gameInfo.players[color];
+					x = player.x;
+					y = player.y;
+					w = player.w;
+					h = player.h;
+					dir = player.dir;
+					speed = gameInfo.speed[player.speed];
+					boundaries = calculatePlayerBoundaries(x, y, w, h, speed);
+					
+					switch (dir) {
+						case "u":
+							pair1 = boundaries.tlp;
+							pair2 = boundaries.trp;
+							point = "x";
+							break;
+						case "d":
+							pair1 = boundaries.blp;
+							pair2 = boundaries.brp;
+							point = "x";
+							break;
+						case "l":
+							pair1 = boundaries.ltp;
+							pair2 = boundaries.lbp;
+							point = "y";
+							break;
+						case "r":
+							pair1 = boundaries.rtp;
+							pair2 = boundaries.rbp;
+							point = "y";
+							break;
+					}
+					var collisionPair1 = isCollision(pair1);
+					var collisionPair2 = isCollision(pair2);
+					if (collisionPair1 || collisionPair2) {
+						var collision = { };
+						if (collisionPair1 == collisionPair2) {
+							collision.both = true;
+						} else {
+							collision.both = false;
+							collision.middle = Math.max(pair1[point],pair2[point]);
+							collision.empty = (collisionPair1 ? pair2[point] : pair1[point]);
+						}
+						return collision;
+					} else {
+						return false;
+					}
+				}
+				// When player is near blocks and isn't necessarily inline with empty space, assist position.
+				// For example, if a certain percentage of the players' sprite is occupying more near the empty space: assist.
 				function checkForPlayerAssist(middlePoint,dir,successPoint) {
 					var middle, successCol, p;
 					var playerCenter = gameInfo.players[gameInfo.me].c;
@@ -179,13 +215,13 @@
 						// if diff is positive, means it was a left side trigger, check if empty space is to the left.
 						if (diff > gameInfo.assist && successCol < middle) {
 							// Left or Top Side triggered.
-							console.log("left top");
+							//console.log("left top");
 							return successCol;
 						}
 						// if diff is negative, means it was a right side trigger, check if empty space is to the right.
 						else if (diff < (-1 * gameInfo.assist) && successCol == middle) {
 							// Right or Bottom side triggered.
-							console.log("right bottom");
+							//console.log("right bottom");
 							return successCol;
 						}
 						else {
@@ -196,12 +232,16 @@
 					}
 					//console.log(col + " " + playerCenter.x);
 				}
+				
+				// Uses a pair of x,y coordinates to determine if player will collide.
 				function isCollision(pair) {
 					var row = Math.floor((pair.y - gameInfo.boardy) / 30) + 1;
 					var col = Math.floor((pair.x - gameInfo.boardx) / 30) + 1;
 					//console.log(row + " " + col + " " + "collision: " + (gameInfo.board[row][col] != "e") + " " + gameInfo.players[gameInfo.me].dir);
 					return (gameInfo.board[row][col] != "e");
 				}
+				
+				// Move player in provided direction and speed.
 				function movePlayer(color, x, y, speed, dir) {
 					var elapsed = new Date().getTime() - ts;
 					var altDir = gameInfo.players[color].altDir;
@@ -225,16 +265,79 @@
 					drawPlayer(color, x, y, dir, altDir);
 				}
 				
+				// When player places a bomb.
 				function layBomb() {
-					var center = gameInfo.players[gameInfo.me].c;
-					var row = Math.floor((center.y - 20) / 30) + 1;
-					var col = Math.floor((center.x - 20) / 30) + 1;
-					gameInfo.board[row][col] = "a";
+					var player = gameInfo.players[gameInfo.me];
+					// if number of bombs placed is less than or equal to number of bombs allowed
+					if (player.nobp < player.noba) {
+						var center = player.c;
+						var row = Math.floor((center.y - 20) / 30) + 1;
+						var col = Math.floor((center.x - 20) / 30) + 1;
+						if (gameInfo.board[row][col] != "a") {
+							gameInfo.board[row][col] = "a";
+							player.nobp++;
+							gameInfo.activeBombs.push({ row: row, col: col, ts: new Date().getTime(), owner: player });
+						}
+					}
+				}
+				function checkBombs() {
+					var ab;
+					var time = new Date().getTime();
+					for (var n = gameInfo.activeBombs.length-1; n >= 0; n--) {
+						ab = gameInfo.activeBombs[n];
+						if (time - ab.ts >= 5000) {
+							gameInfo.board[ab.row][ab.col] = "e";
+							ab.owner.nobp--;
+							gameInfo.activeBombs.splice(n,1);
+							explode(ab);
+						}
+					}
+				}
+				function explode(bomb) {
+					//f up/down
+					// g middle
+					// h left/right
+					var player = bomb.owner;
+					var expStr = player.expStr;
+					var row = bomb.row;
+					var col = bomb.col;
+					gameInfo.board[row][col] = "g";
+					if (row > 1) {
+						renderExplosion(expStr, row, col, "u", false);
+					}
+					if (row < 15) { 
+						renderExplosion(expStr, row, col, "d", false);
+					}
+					if (col > 1) {
+						renderExplosion(expStr, row, col, "l", true);
+					}
+					if (col < 19) {
+						renderExplosion(expStr, row, col, "r", true);
+					}
+				}
+				function renderExplosion(expStr, row, col, dir, isHorizontal) {
+					var typeOfFire = (isHorizontal ? "h" : "f");
+					var newRow = row, newCol = col;
+					for (var n = 1; n <= expStr; n++) {
+						newRow = (isHorizontal ? row : (dir =="u" ? newRow - 1 : newRow + 1));
+						newCol = (isHorizontal ? (dir =="r" ? newCol + 1 : newCol - 1) : col );
+						if (gameInfo.board[newRow][newCol] == "w") {
+							break;
+						} else if (gameInfo.board[newRow][newCol] == "b") {
+							gameInfo.board[newRow][newCol] = typeOfFire;
+							break;
+						} else {
+							gameInfo.board[newRow][newCol] = typeOfFire;
+						}
+					}
 				}
 				
+				// Draw items, excluding players.
 				function drawItem(item, x, y) {
 					ctx.drawImage(bmcache, gameInfo.entityBitmap[item].x, gameInfo.entityBitmap[item].y, gameInfo.entityBitmap[item].w, gameInfo.entityBitmap[item].h, x, y, gameInfo.entityBitmap[item].w, gameInfo.entityBitmap[item].h);
 				}
+				
+				// Calculate player boundaries, pairs of points around sprite.
 				function calculatePlayerBoundaries(x, y, w, h, speed) {
 					var boundaries = {
 						// Center
@@ -247,16 +350,16 @@
 						trp: { x: x+w-1 , y: Math.floor(y-1-speed) },
 						
 						// Right top pair
-						rtp: { x: x+w-1+speed, y: y },
+						rtp: { x: x+w-1+Math.ceil(speed), y: y },
 						
 						// Right bottom pair
-						rbp: { x: x+w-1+speed, y: y+h-1 },
+						rbp: { x: x+w-1+Math.ceil(speed), y: y+h-1 },
 						
 						// Bottom right pair
-						brp: { x: x+w-1, y: y+h-1+speed },
+						brp: { x: x+w-1, y: y+h-1+Math.ceil(speed) },
 						
 						// Bottom left pair
-						blp: { x: x, y: y+h-1+speed },
+						blp: { x: x, y: y+h-1+Math.ceil(speed) },
 						
 						// Left bottom pair
 						lbp: { x: Math.floor(x-1-speed), y: y+h-1 },
@@ -266,31 +369,14 @@
 					}
 					return boundaries;
 				}
+				
+				// Draw player and update x y w h and boundaries.
 				function drawPlayer(color, x, y, direction, alt) {
 					var w = gameInfo.entityBitmap[color][direction + alt].w;
 					var h = gameInfo.entityBitmap[color][direction + alt].h;
 					var player = gameInfo.players[color];
 					var speed = Math.ceil(gameInfo.speed[player.speed]);
 					var boundaries = calculatePlayerBoundaries(x, y, w, h, speed);
-
-					if (player.changingDir) {
-						if (player.dir == "u" || player.dir == "d") {
-							// Get new x using old centre
-							var testNewX = player["c"].x - Math.floor(w/2);
-							boundaries = calculatePlayerBoundaries(testNewX, y, w, h, speed);
-							var collisionLeft = (isCollision(boundaries.ltp) || isCollision(boundaries.lbp));
-							var collisionRight = (isCollision(boundaries.rtp) || isCollision(boundaries.rbp));
-							if (collisionLeft || collisionRight) { x = (Math.floor(((x - gameInfo.boardx) / 30)) * 30) + gameInfo.boardx + 1; }
-							else { x = testNewX; }
-							boundaries = calculatePlayerBoundaries(x, y, w, h, speed);
-							player.changingDir = 0;
-						} else {
-							x = player["c"].x - Math.floor(w/2);
-							boundaries = calculatePlayerBoundaries(x, y, w, h, speed);
-							console.log(boundaries.rtp);
-							player.changingDir = 0;
-						}
-					}
 
 					player.x = x;
 					player.y = y;
@@ -300,29 +386,16 @@
 						player[bound] = boundaries[bound];
 					}
 					ctx.drawImage(bmcache, gameInfo.entityBitmap[color][direction + alt].x, gameInfo.entityBitmap[color][direction + alt].y, w, h, x, y, w, h);
-					/*ctx.beginPath();
-					ctx.strokeStyle = "red";
-					ctx.moveTo(x,y);
-					ctx.lineTo(x+w-1,y);
-					ctx.lineTo(x+w-1,y+h-1);
-					ctx.lineTo(x,y+h-1);
-					ctx.lineTo(x,y);
-					ctx.closePath();
-					ctx.stroke();
-					
-					ctx.beginPath();
-					ctx.strokeStyle = "yellow";
-					ctx.moveTo(player.tlp.x,player.tlp.y);
-					ctx.lineTo(player.trp.x,player.trp.y);
-					ctx.lineTo(player.rtp.x,player.rbp.y);
-					ctx.lineTo(player.rbp.x,player.rbp.y);
-					ctx.lineTo(player.brp.x,player.brp.y);
-					ctx.lineTo(player.blp.x,player.blp.y);
-					ctx.lineTo(player.lbp.x,player.lbp.y);
-					ctx.lineTo(player.ltp.x,player.ltp.y);
-					ctx.closePath();
-					ctx.stroke();*/
 				}
+				
+				function spawnPlayer(color) {
+					var rand = Math.floor(Math.random() * 8);
+					//var sp = gameInfo.spawnPoints[rand];
+					var sp = gameInfo.spawnPoints[0];
+					console.log(sp.x + " " + sp.y + " " + rand);
+					drawPlayer(color, sp.x, sp.y, "d", 0);
+				}
+				
 				
 				// This function is called when user changes direction, once, to avoid sprite shifting position into another block.
 				// For example, walking right until sprite hits a block, sprite changes direction to down, half of body is in wall.
@@ -336,7 +409,19 @@
 					if (collisionRight) { x = (Math.floor(((x - gameInfo.boardx) / 30)) * 30) + 21; }
 					return { x: x, y: y };
 				}
-								
+				
+				function loadSpawnPoints() {
+					gameInfo.spawnPoints[0] = { x: 21, y: 24 };
+					gameInfo.spawnPoints[1] = { x: 291, y: 24 };
+					gameInfo.spawnPoints[2] = { x: 561, y: 24 };
+					gameInfo.spawnPoints[3] = { x: 561, y: 234 };
+					gameInfo.spawnPoints[4] = { x: 561, y: 444 };
+					gameInfo.spawnPoints[5] = { x: 291, y: 444 };
+					gameInfo.spawnPoints[6] = { x: 21, y: 444 };
+					gameInfo.spawnPoints[7] = { x: 21, y: 234 };
+				}
+				
+				// Board tiles 2D Array
 				function loadBoardTiles() {
 					gameInfo.board[0] = "ooooooooooooooooooooo";
 					gameInfo.board[1] = "oeebbbbbbeeebbbbbbeeo";
@@ -357,6 +442,7 @@
 					gameInfo.board[16] = "ooooooooooooooooooooo";
 					gameInfo.board = gameInfo.board.map(function(cols) { return cols.split(""); });
 				}
+				// Mapper for entities
 				function loadEntityBitmap() {
 					gameInfo.entityBitmap["w"] = { x: 0, y: 30, w: 31, h: 31 };
 					gameInfo.entityBitmap["b"] = { x: 0, y: 0, w: 31, h: 31 };
@@ -365,6 +451,9 @@
 					gameInfo.entityBitmap["speed"] = { x: 1, y: 62, w: 30, h: 22 };
 					gameInfo.entityBitmap["exp"] = { x: 4, y: 85, w: 24, h: 26 };
 					gameInfo.entityBitmap["a"] = { x: 0, y: 112, w: 30, h: 31 };
+					gameInfo.entityBitmap["f"] = { x: 0, y: 177, w: 30, h: 30 };
+					gameInfo.entityBitmap["g"] = { x: 88, y: 240, w: 30, h: 30 };
+					gameInfo.entityBitmap["h"] = { x: 0, y: 208, w: 30, h: 30 };
 					
 					var colors = [ "pink", "cyan", "red", "yellow", "blue", "lime", "gold", "green" ];
 					var y = 0;
@@ -378,7 +467,7 @@
 						y+= 25;
 					}
 				}
-				
+				// Erase all items/sprites/blocks, draw board, walls, unexploded bricks.
 				function redrawBoard() {
 					// Board Fill
 					ctx.fillStyle = gameInfo.boardcolor;
@@ -401,6 +490,8 @@
 						y += 30;
 					}
 				}
+				
+				// Initial Loading.
 				function prepare() {
 					ctx.clearRect ( 0 , 0 , ctx.canvas.width, ctx.canvas.height );
 					// Main Window
@@ -409,11 +500,13 @@
 					
 					loadEntityBitmap();				
 					loadBoardTiles();
+					loadSpawnPoints();
 					
 					// Board
 					redrawBoard();
 					
-					drawPlayer("red",21,233, "d", 0);
+					//drawPlayer("red",21,233, "d", 0);
+					spawnPlayer("red");
 					for (var n = 0; n < 8; n++) {
 						drawBox(610,20 + (n * 57), 170, 50);
 					}
@@ -422,6 +515,7 @@
 					
 				}
 				
+				// GUI Helper
 				function drawBox(x,y,w,h) {
 					//1 239 4 4 left-top
 					//4 239 4 4 right-top
@@ -452,54 +546,62 @@
 				
 				$(document).keyup(function(e) {
 					//console.log("stopped");
-					if (e.keyCode != 32) {
-						var player = gameInfo.players[gameInfo.me];
-						player.isStopping = 1;
+					if (e.keyCode >= 37 && e.keyCode <= 40) {
+						switch (e.keyCode) {
+							case 38:
+								pressedKeys.u = false;
+								break;
+							case 39:
+								pressedKeys.r = false;
+								break;
+							case 40:
+								pressedKeys.d = false;
+								break;
+							case 37:
+								pressedKeys.l = false;
+								break;
+						}
+						if (!pressedKeys.u && !pressedKeys.r && !pressedKeys.d && !pressedKeys.l) {
+							var player = gameInfo.players[gameInfo.me];
+							player.isStopping = 1;
+						}
 					}
 				});
 				$(document).keydown(function(e) {
-					// Up - Right - Down - Left
 					var player = gameInfo.players[gameInfo.me];
-					if (e.keyCode == 38) {
-						e.preventDefault();
-						if (player.dir != "u" || player.isStopped) {
-							player.changingDir = (player.dir != "u" ? 1 : 0);
-							player.isStopped = 0;
-							player.dir = "u";
-							player.altDir = 0;
-						}
-					} else if (e.keyCode == 39) {
-						e.preventDefault();
-						if (player.dir != "r" || player.isStopped) {
-							player.changingDir = (player.dir != "r" ? 1 : 0);
-							player.isStopped = 0;
-							player.dir = "r";
-							player.altDir = 0;
-						}
-					} else if (e.keyCode == 40) {
-						e.preventDefault();
-						if (player.dir != "d" || player.isStopped) {
-							player.changingDir = (player.dir != "d" ? 1 : 0);
-							player.isStopped = 0;
-							player.dir = "d";
-							player.altDir = 0;
-						}
-					} else if (e.keyCode == 37) {
-						e.preventDefault();
-						if (player.dir != "l" || player.isStopped) {
-							player.changingDir = (player.dir != "l" ? 1 : 0);
-							player.isStopped = 0;
-							player.dir = "l";
-							player.altDir = 0;
-						}
-					} else if (e.keyCode == 32) {
+					if (e.keyCode == 32) {
 						e.preventDefault();
 						layBomb();
 					}
-					//38=up
-					//39=right
-					//40=down
-					//37=left
+					else if (e.keyCode >= 37 && e.keyCode <= 40) {
+						var letter;
+						switch (e.keyCode) {
+							case 37:
+								letter = "l";
+								break;
+							case 38:
+								letter = "u";
+								break;
+							case 39:
+								letter = "r";
+								break;
+							case 40:
+								letter = "d";
+								break;
+						}
+						e.preventDefault();
+						pressedKeys[letter] = true;
+						if (player.dir != letter || player.isStopped) {
+							player.changingDir = (player.dir != letter ? 1 : 0);
+							player.isStopped = 0;
+							player.dir = letter;
+							player.altDir = 0;
+						}
+						//38=up
+						//39=right
+						//40=down
+						//37=left
+					}
 				});
 			//});			
 		</script>
