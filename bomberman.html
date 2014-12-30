@@ -5,7 +5,14 @@
 		<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
 	</HEAD>
 	<BODY style="background-color: #000000;">
-		<div style="margin: 0px auto; text-align: center;">
+		<div id="debug" style="width:200px;height:600px;background-color:#FFFFFF;display:inline-block;vertical-align:top;text-align:center;padding-top:5px;">
+			<input type="button" id="spawnRndSpot" value="Spawn Random Spot" />
+			<input type="button" id="clearBricks" value="Clear All Bricks" />
+			<div id="dbgPlayer" style="border:1px solid #000000;width:80%;margin: 0 auto;">
+				<span>Edit Player</span><br /><br />
+			</div>
+		</div>
+		<div style="margin: 0px auto; text-align: center;display:inline-block;">
 			<canvas id="canvas" width="800" height="600" style="border-radius: 5px;"></canvas>
 			<img id="bmcache" style="display: none;" src="imgs/bmcache.png" />
 		</div>
@@ -321,7 +328,7 @@
 					for (var n = 1; n <= expStr; n++) {
 						newRow = (isHorizontal ? row : (dir =="u" ? newRow - 1 : newRow + 1));
 						newCol = (isHorizontal ? (dir =="r" ? newCol + 1 : newCol - 1) : col );
-						if (gameInfo.board[newRow][newCol] == "w") {
+						if (gameInfo.board[newRow][newCol] == "w" || gameInfo.board[newRow][newCol] == "o") {
 							break;
 						} else if (gameInfo.board[newRow][newCol] == "b") {
 							gameInfo.board[newRow][newCol] = typeOfFire;
@@ -390,8 +397,8 @@
 				
 				function spawnPlayer(color) {
 					var rand = Math.floor(Math.random() * 8);
-					//var sp = gameInfo.spawnPoints[rand];
-					var sp = gameInfo.spawnPoints[0];
+					var sp = gameInfo.spawnPoints[rand];
+					//var sp = gameInfo.spawnPoints[0];
 					console.log(sp.x + " " + sp.y + " " + rand);
 					drawPlayer(color, sp.x, sp.y, "d", 0);
 				}
@@ -545,25 +552,38 @@
 				
 				
 				$(document).keyup(function(e) {
-					//console.log("stopped");
+					console.log(e.keyCode);
 					if (e.keyCode >= 37 && e.keyCode <= 40) {
+						var letter;
 						switch (e.keyCode) {
 							case 38:
 								pressedKeys.u = false;
+								letter = "u";
 								break;
 							case 39:
 								pressedKeys.r = false;
+								letter = "r";
 								break;
 							case 40:
 								pressedKeys.d = false;
+								letter = "d";
 								break;
 							case 37:
 								pressedKeys.l = false;
+								letter = "l";
 								break;
 						}
+						var player = gameInfo.players[gameInfo.me];
 						if (!pressedKeys.u && !pressedKeys.r && !pressedKeys.d && !pressedKeys.l) {
-							var player = gameInfo.players[gameInfo.me];
 							player.isStopping = 1;
+						} else {
+							var newDir;
+							for (realDir in pressedKeys) {
+								if (pressedKeys[realDir]) { newDir = realDir; break; }
+							}
+							player.changingDir = (player.dir != realDir ? 1 : 0);
+							player.altDir = 0;
+							player.dir = realDir;
 						}
 					}
 				});
@@ -603,6 +623,40 @@
 						//37=left
 					}
 				});
+				
+				
+				// *********** DEBUG ******************
+				
+				$("#clearBricks").click(function(e) {
+					for (var r = 1; r < gameInfo.board.length-1; r++ ) {
+						for (var c = 1; c < gameInfo.board[r].length-1; c++) {
+							if (gameInfo.board[r][c] != "w") {
+								gameInfo.board[r][c] = "e";
+							}
+						}
+					}
+				});
+				$("#spawnRndSpot").click(function(e) {
+					spawnPlayer("red");
+				});
+				
+				$(document).ready(function() {
+					for (prop in gameInfo.players.red) {
+						if (prop == "tlp") { break; }
+						if (prop == "c") { continue; }
+						$("#dbgPlayer").append('<label style="display: inline-block; width: 80px; margin-right: 5px;" for="dbg' + prop + '">' + prop + '</label><input style="width: 50px;" type="text" data-prop="' + prop + '" value="' + gameInfo.players.red[prop] + '" /><br />');
+					}
+					$("#dbgPlayer").append('<input type="button" value="Save" id="dbgplayerSave" />');
+					$("#dbgplayerSave").click(function(e) {
+						console.log($("#dbgPlayer"));
+						$("#dbgPlayer").find("input[type=text]").each(function(i,e) {
+							var val = isNaN($(e).val()) ? $(e).val() : parseInt($(e).val());
+							if (val == "false" || val == "true") { val = (val == "true" ? true : false); }
+							gameInfo.players.red[$(e).attr("data-prop")] = val;
+						});
+					});
+				});
+				
 			//});			
 		</script>
 	</BODY>
