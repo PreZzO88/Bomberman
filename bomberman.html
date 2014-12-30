@@ -399,7 +399,7 @@
 					var rand = Math.floor(Math.random() * 8);
 					var sp = gameInfo.spawnPoints[rand];
 					//var sp = gameInfo.spawnPoints[0];
-					console.log(sp.x + " " + sp.y + " " + rand);
+					//console.log(sp.x + " " + sp.y + " " + rand);
 					drawPlayer(color, sp.x, sp.y, "d", 0);
 				}
 				
@@ -552,7 +552,7 @@
 				
 				
 				$(document).keyup(function(e) {
-					console.log(e.keyCode);
+					//console.log(e.keyCode);
 					if (e.keyCode >= 37 && e.keyCode <= 40) {
 						var letter;
 						switch (e.keyCode) {
@@ -648,7 +648,7 @@
 					}
 					$("#dbgPlayer").append('<input type="button" value="Save" id="dbgplayerSave" />');
 					$("#dbgplayerSave").click(function(e) {
-						console.log($("#dbgPlayer"));
+						//console.log($("#dbgPlayer"));
 						$("#dbgPlayer").find("input[type=text]").each(function(i,e) {
 							var val = isNaN($(e).val()) ? $(e).val() : parseInt($(e).val());
 							if (val == "false" || val == "true") { val = (val == "true" ? true : false); }
