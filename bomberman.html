@@ -39,11 +39,12 @@
 					bmcache: $("#bmcache")[0],
 					alternateAnimationSpeed: 200,
 					players: { 
-						red: { x: 0, y: 0, isDead: false, color: "red", dir: "d", altDir: 0, c: 0, isStopping: 0, isStopped: 1, speed: "normal", changingDir: 0, nobp: 0, noba: 2, expStr: 1 }
+						red: { x: 0, y: 0, isDead: false, color: "red", dir: "d", altDir: 0, c: 0, isStopping: 0, isStopped: 1, speed: "fastest", changingDir: 0, nobp: 0, noba: 2, expStr: 1 }
 					},
 					entityBitmap: {},
 					spawnPoints: [],
 					activeBombs: [],
+					activeExplosions: [],
 					speed: { normal: 0.5, fast: 0.75, fastest: 1 }
 				};
 
@@ -328,11 +329,20 @@
 					for (var n = 1; n <= expStr; n++) {
 						newRow = (isHorizontal ? row : (dir =="u" ? newRow - 1 : newRow + 1));
 						newCol = (isHorizontal ? (dir =="r" ? newCol + 1 : newCol - 1) : col );
-						if (gameInfo.board[newRow][newCol] == "w" || gameInfo.board[newRow][newCol] == "o") {
+						var item = gameInfo.board[newRow][newCol];
+						if (item == "w" || item == "o") {
 							break;
-						} else if (gameInfo.board[newRow][newCol] == "b") {
+						} else if (item == "b") {
 							gameInfo.board[newRow][newCol] = typeOfFire;
 							break;
+						} else if (item == "a") {
+							var bombsInCrossfire = $.grep(gameInfo.activeBombs, function(b) { return b.row == newRow && b.col == newCol; });
+							if (bombsInCrossfire.length > 0) {
+								console.log("works");
+								for (bombs in bombsInCrossfire) {
+									bombsInCrossfire[bombs].ts = new Date().getTime() - 4500;
+								}
+							}
 						} else {
 							gameInfo.board[newRow][newCol] = typeOfFire;
 						}
