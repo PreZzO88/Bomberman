@@ -1,3 +1,4 @@
+<!-- saved from url=(0022)http://internet.e-mail -->
 <!doctype html>
 <HTML>
 	<HEAD>
@@ -39,7 +40,7 @@
 					bmcache: $("#bmcache")[0],
 					alternateAnimationSpeed: 200,
 					players: { 
-						red: { x: 0, y: 0, isDead: false, color: "red", dir: "d", altDir: 0, c: 0, isStopping: 0, isStopped: 1, speed: "fastest", changingDir: 0, nobp: 0, noba: 2, expStr: 1 }
+						red: { x: 0, y: 0, isDead: false, color: "red", dir: "d", altDir: 0, c: 0, isStopping: 0, isStopped: 1, speed: "fastest", changingDir: 0, nobp: 0, noba: 2, expStr: 1, lastLay: {} }
 					},
 					entityBitmap: {},
 					spawnPoints: [],
@@ -140,11 +141,13 @@
 								}
 							} else {
 								// if not moving, just draw last known dir and non-moving position.
+								checkIfPlayerDead();
 								drawPlayer(color, x, y, dir, 0);
 							}
 						}
 					}
 					checkBombs();
+					checkExplosions();
 					window.requestAnimationFrame(mainRender);
 				}
 				
@@ -245,10 +248,36 @@
 				function isCollision(pair) {
 					var row = Math.floor((pair.y - gameInfo.boardy) / 30) + 1;
 					var col = Math.floor((pair.x - gameInfo.boardx) / 30) + 1;
+					var item = gameInfo.board[row][col];
+					var player = gameInfo.players[gameInfo.me];
+					if (item == "a") {
+						var lastBomb = player.lastLay;
+						var centerRow = Math.floor((player.c.y - gameInfo.boardy) / 30) + 1;
+						var centerCol = Math.floor((player.c.x - gameInfo.boardx) / 30) + 1;
+						if (lastBomb.r == centerRow && lastBomb.c == centerCol) {
+							return false;
+						} else {
+							player.lastLay = {};
+						}
+					} else if (item == "f" || item == "g" || item == "h") {
+						player.isDead = true;
+						return false;
+					}
 					//console.log(row + " " + col + " " + "collision: " + (gameInfo.board[row][col] != "e") + " " + gameInfo.players[gameInfo.me].dir);
-					return (gameInfo.board[row][col] != "e");
+					return (item != "e");
 				}
-				
+				function checkIfPlayerDead() {
+					var player = gameInfo.players[gameInfo.me];
+					var row = Math.floor((player.c.y - gameInfo.boardy) / 30) + 1;
+					var col = Math.floor((player.c.x - gameInfo.boardx) / 30) + 1;
+					var item = gameInfo.board[row][col];
+					if (item == "f" || item == "g" || item == "h") {
+						player.isDead = true;
+						return true;
+					} else {
+						return false;
+					}
+				}
 				// Move player in provided direction and speed.
 				function movePlayer(color, x, y, speed, dir) {
 					var elapsed = new Date().getTime() - ts;
@@ -276,7 +305,7 @@
 				// When player places a bomb.
 				function layBomb() {
 					var player = gameInfo.players[gameInfo.me];
-					// if number of bombs placed is less than or equal to number of bombs allowed
+					// if number of bombs placed is less than number of bombs allowed
 					if (player.nobp < player.noba) {
 						var center = player.c;
 						var row = Math.floor((center.y - 20) / 30) + 1;
@@ -285,6 +314,7 @@
 							gameInfo.board[row][col] = "a";
 							player.nobp++;
 							gameInfo.activeBombs.push({ row: row, col: col, ts: new Date().getTime(), owner: player });
+							player.lastLay = { r: row, c: col };
 						}
 					}
 				}
@@ -301,6 +331,17 @@
 						}
 					}
 				}
+				function checkExplosions() {
+					var ae;
+					var time = new Date().getTime();
+					for (var n = gameInfo.activeExplosions.length-1; n >= 0; n--) {
+						ae = gameInfo.activeExplosions[n];
+						if (time - ae.ts >= 2000) {
+							gameInfo.board[ae.row][ae.col] = "e";
+							gameInfo.activeExplosions.splice(n,1);
+						}
+					}	
+				}
 				function explode(bomb) {
 					//f up/down
 					// g middle
@@ -309,7 +350,8 @@
 					var expStr = player.expStr;
 					var row = bomb.row;
 					var col = bomb.col;
-					gameInfo.board[row][col] = "g";
+					//gameInfo.board[row][col] = "g";
+					addNewExplosion(row, col, "g");
 					if (row > 1) {
 						renderExplosion(expStr, row, col, "u", false);
 					}
@@ -333,22 +375,25 @@
 						if (item == "w" || item == "o") {
 							break;
 						} else if (item == "b") {
-							gameInfo.board[newRow][newCol] = typeOfFire;
+							addNewExplosion(newRow, newCol, typeOfFire);
 							break;
 						} else if (item == "a") {
 							var bombsInCrossfire = $.grep(gameInfo.activeBombs, function(b) { return b.row == newRow && b.col == newCol; });
 							if (bombsInCrossfire.length > 0) {
-								console.log("works");
 								for (bombs in bombsInCrossfire) {
+									addNewExplosion(newRow, newCol, typeOfFire);
 									bombsInCrossfire[bombs].ts = new Date().getTime() - 4500;
 								}
 							}
 						} else {
-							gameInfo.board[newRow][newCol] = typeOfFire;
+							addNewExplosion(newRow, newCol, typeOfFire);
 						}
 					}
 				}
-				
+				function addNewExplosion(row, col, typeOfFire) {
+					gameInfo.board[row][col] = typeOfFire;
+					gameInfo.activeExplosions.push({ row: row, col: col, ts: new Date().getTime() });
+				}
 				// Draw items, excluding players.
 				function drawItem(item, x, y) {
 					ctx.drawImage(bmcache, gameInfo.entityBitmap[item].x, gameInfo.entityBitmap[item].y, gameInfo.entityBitmap[item].w, gameInfo.entityBitmap[item].h, x, y, gameInfo.entityBitmap[item].w, gameInfo.entityBitmap[item].h);
@@ -601,36 +646,47 @@
 					var player = gameInfo.players[gameInfo.me];
 					if (e.keyCode == 32) {
 						e.preventDefault();
-						layBomb();
+						if (!player.isDead) {
+							layBomb();
+						}
+					}
+					else if (e.keyCode == 13) {
+						e.preventDefault();
+						if (player.isDead) {
+							player.isDead = false;
+							spawnPlayer(player.color);
+						}
 					}
 					else if (e.keyCode >= 37 && e.keyCode <= 40) {
-						var letter;
-						switch (e.keyCode) {
-							case 37:
-								letter = "l";
-								break;
-							case 38:
-								letter = "u";
-								break;
-							case 39:
-								letter = "r";
-								break;
-							case 40:
-								letter = "d";
-								break;
-						}
 						e.preventDefault();
-						pressedKeys[letter] = true;
-						if (player.dir != letter || player.isStopped) {
-							player.changingDir = (player.dir != letter ? 1 : 0);
-							player.isStopped = 0;
-							player.dir = letter;
-							player.altDir = 0;
+						if (!player.isDead) {
+							var letter;
+							switch (e.keyCode) {
+								case 37:
+									letter = "l";
+									break;
+								case 38:
+									letter = "u";
+									break;
+								case 39:
+									letter = "r";
+									break;
+								case 40:
+									letter = "d";
+									break;
+							}
+							pressedKeys[letter] = true;
+							if (player.dir != letter || player.isStopped) {
+								player.changingDir = (player.dir != letter ? 1 : 0);
+								player.isStopped = 0;
+								player.dir = letter;
+								player.altDir = 0;
+							}
+							//38=up
+							//39=right
+							//40=down
+							//37=left
 						}
-						//38=up
-						//39=right
-						//40=down
-						//37=left
 					}
 				});
 				
