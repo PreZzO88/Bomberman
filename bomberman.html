@@ -1,9 +1,9 @@
-<!-- saved from url=(0022)http://internet.e-mail -->
 <!doctype html>
 <HTML>
 	<HEAD>
 		<TITLE>:: Bomberman</TITLE>
 		<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+		<script src="https://cdn.socket.io/socket.io-1.2.1.js"></script>
 	</HEAD>
 	<BODY style="background-color: #000000;">
 		<div id="debug" style="width:200px;height:600px;background-color:#FFFFFF;display:inline-block;vertical-align:top;text-align:center;padding-top:5px;">
@@ -13,9 +13,11 @@
 				<span>Edit Player</span><br /><br />
 			</div>
 		</div>
-		<div style="margin: 0px auto; text-align: center;display:inline-block;">
+		<div style="margin: 0px auto; text-align: center;display:inline-block; position: relative;">
 			<canvas id="canvas" width="800" height="600" style="border-radius: 5px;"></canvas>
 			<img id="bmcache" style="display: none;" src="imgs/bmcache.png" />
+			<input type="text" id="bmName" maxlength="15" style="position: absolute; display: none; width: 144px; right: 31px; top: 203px;"/>
+			<input type="button" id="bmNameBtn" value="Enter" style="position: absolute; display: none; width: 84px; right: 63px; top: 239px;"/>
 		</div>
 		<script>
 			//$(document).ready(function() {
@@ -44,8 +46,15 @@
 					},
 					entityBitmap: {},
 					spawnPoints: [],
+					namelist: [],
+					pickingColor: false,
+					pickingName: false,
+					availableColors: { pink: true, cyan: true, red: true, yellow: true, blue: true, lime: true, gold: true, green: true },
+					pickingColorMouseIn: false,
+					colors: [ "pink", "cyan", "red", "yellow", "blue", "lime", "gold", "green" ],
 					activeBombs: [],
 					activeExplosions: [],
+					playing: false,
 					speed: { normal: 0.5, fast: 0.75, fastest: 1 }
 				};
 
@@ -517,10 +526,9 @@
 					gameInfo.entityBitmap["g"] = { x: 88, y: 240, w: 30, h: 30 };
 					gameInfo.entityBitmap["h"] = { x: 0, y: 208, w: 30, h: 30 };
 					
-					var colors = [ "pink", "cyan", "red", "yellow", "blue", "lime", "gold", "green" ];
 					var y = 0;
-					for (color in colors) {
-						gameInfo.entityBitmap[colors[color]] = {
+					for (color in gameInfo.colors) {
+						gameInfo.entityBitmap[gameInfo.colors[color]] = {
 							d0: { x: 33, y: y, w: 29, h: 23 }, d1: { x: 144, y: y, w: 29, h: 23 }, d2: { x: 255, y: y, w: 29, h: 23 },
 							u0: { x: 87, y: y, w: 29, h: 23 }, u1: { x: 198, y: y, w: 29, h: 22 }, u2: { x: 309, y: y, w: 29, h: 22 },
 							r0: { x: 120, y: y, w: 20, h: 23 }, r1: { x: 231, y: y, w: 20, h: 23 }, r2: { x: 342, y: y, w: 20, h: 23 },
@@ -566,19 +574,38 @@
 					
 					// Board
 					redrawBoard();
+
+					gameInfo.gameID = getGameID();
 					
 					//drawPlayer("red",21,233, "d", 0);
-					spawnPlayer("red");
-					for (var n = 0; n < 8; n++) {
-						drawBox(610,20 + (n * 57), 170, 50);
-					}
-					// Launch renderer.
-					mainRender();
+					//spawnPlayer("red");
 					
+					//drawChoosePlayer();
+					
+					// Launch renderer.
+					//mainRender();
+					
+				}
+				function getGameID() {
+					var params = window.location.search.substring(1).split("&");
+					for (param in params) {
+						var pair = params[param].split("=");
+						if (pair[0] == "gid") {
+							return pair[1];
+						}
+					}
+					return false;
+				}
+				function showScores() {
+					ctx.fillStyle = gameInfo.bgcolor;
+					ctx.fillRect(605,15,180,460);
+					for (var n = 0; n < 8; n++) {
+						drawBox(610,20 + (n * 57), 170, 50, '#496B8D');
+					}
 				}
 				
 				// GUI Helper
-				function drawBox(x,y,w,h) {
+				function drawBox(x,y,w,h, fillStyle) {
 					//1 239 4 4 left-top
 					//4 239 4 4 right-top
 					//1 260 4 4 left-bottom
@@ -595,50 +622,126 @@
 					ctx.lineTo(x, y + h - offset);
 					ctx.lineTo(x, y + offset);
 					ctx.closePath();
-					ctx.fillStyle = '#496B8D';
+					//ctx.fillStyle = '#496B8D';
+					//ctx.fillStyle = 'rgba(0,0,200,0.25)';
+					ctx.fillStyle = fillStyle;
 					ctx.fill();
 					ctx.strokeStyle = "#000000";
 					ctx.stroke();
-					
+				}
+				function drawPlayerName() {
+					drawBox(610, 188, 170, 115, '#496B8D');
+					ctx.font = "10pt verdana";
+					ctx.fillStyle = "#FFFFFF";
+					ctx.fillText("Enter Player Name", 632, 285);
+					$("#bmName").show();
+					$("#bmNameBtn").show();
+				}
+				function drawChoosePlayer() {
+					var x = 625, y = 203;
+					drawBox(x - 15, y - 15, 170, 115, '#496B8D');
+					for (color in gameInfo.colors) {
+						if (color == 4) {
+							x = 625;
+							y += 35;
+						}
+						var player = gameInfo.entityBitmap[gameInfo.colors[color]]["d0"];
+						ctx.drawImage(bmcache, player.x, player.y, player.w, player.h, x, y, player.w, player.h);
+						if (!gameInfo.availableColors[gameInfo.colors[color]]) {
+							ctx.beginPath();
+							ctx.moveTo(x, y);
+							ctx.lineTo(x + 30, y+23);
+							ctx.moveTo(x + 30, y);
+							ctx.lineTo(x, y+23);
+							ctx.closePath();
+							ctx.strokeStyle = "rgb(255,0,0)";
+							ctx.stroke();
+						}
+						x += 35;
+					}
+					ctx.font = "10pt verdana";
+					ctx.fillStyle = "#FFFFFF";
+					ctx.fillText("Choose a Color!", 640, 285);
 				}
 				
+				// ***** LISTENERS - KEYS / Picking Color
 				
-				// ***** LISTENERS - KEYS
-				
-				
+				function getPickingColor(cx,cy) {
+					var canvasLoc = ctx.canvas.getBoundingClientRect();
+					var x = Math.ceil(cx - canvasLoc.left);
+					var y = Math.ceil(cy - canvasLoc.top);
+					if (x >= 624 && y >= 202 && x <= 760 && y <= 261) {
+						var row = Math.floor((y - 202) / 35);
+						var col = Math.floor((x - 624) / 35);
+						return { row: row, col: col };
+					} else {
+						return false;
+					}
+				}
+
+				$("#canvas").click(function(e) {
+					if (gameInfo.pickingColor) {
+						var colorRowCol = getPickingColor(e.clientX, e.clientY);
+						var color = gameInfo.colors[(colorRowCol.row * 4) + colorRowCol.col];
+						if (gameInfo.availableColors[color]) {
+							//sendToServer('join', { "name": $("#bmName").val(), "color": color, "gameID": gameInfo.gameID });
+							sendToServer('join', { "name": "PsYcHoX88", "color": "red", "gameID": "544" });
+						}
+					}
+				});
+				$("#canvas").mousemove(function(e) {
+					if (gameInfo.pickingColor) {
+						var color = getPickingColor(e.clientX, e.clientY);
+						if (color !== false) {
+							gameInfo.pickingColorMouseIn = true;
+							drawChoosePlayer();
+							if (gameInfo.availableColors[gameInfo.colors[(color.row * 4) + color.col]]) {
+								drawBox(622 + (color.col * 35), 197 + (color.row * 35), 35, 35, 'rgba(0,107,185,0.25)');
+							}
+						} else {
+							if (gameInfo.pickingColorMouseIn) {
+								drawChoosePlayer();
+								gameInfo.pickingColorMouseIn = false;
+							}
+						}
+					}
+				});
+
 				$(document).keyup(function(e) {
 					//console.log(e.keyCode);
-					if (e.keyCode >= 37 && e.keyCode <= 40) {
-						var letter;
-						switch (e.keyCode) {
-							case 38:
-								pressedKeys.u = false;
-								letter = "u";
-								break;
-							case 39:
-								pressedKeys.r = false;
-								letter = "r";
-								break;
-							case 40:
-								pressedKeys.d = false;
-								letter = "d";
-								break;
-							case 37:
-								pressedKeys.l = false;
-								letter = "l";
-								break;
-						}
-						var player = gameInfo.players[gameInfo.me];
-						if (!pressedKeys.u && !pressedKeys.r && !pressedKeys.d && !pressedKeys.l) {
-							player.isStopping = 1;
-						} else {
-							var newDir;
-							for (realDir in pressedKeys) {
-								if (pressedKeys[realDir]) { newDir = realDir; break; }
+					if (gameInfo.playing) {
+						if (e.keyCode >= 37 && e.keyCode <= 40) {
+							var letter;
+							switch (e.keyCode) {
+								case 38:
+									pressedKeys.u = false;
+									letter = "u";
+									break;
+								case 39:
+									pressedKeys.r = false;
+									letter = "r";
+									break;
+								case 40:
+									pressedKeys.d = false;
+									letter = "d";
+									break;
+								case 37:
+									pressedKeys.l = false;
+									letter = "l";
+									break;
 							}
-							player.changingDir = (player.dir != realDir ? 1 : 0);
-							player.altDir = 0;
-							player.dir = realDir;
+							var player = gameInfo.players[gameInfo.me];
+							if (!pressedKeys.u && !pressedKeys.r && !pressedKeys.d && !pressedKeys.l) {
+								player.isStopping = 1;
+							} else {
+								var newDir;
+								for (realDir in pressedKeys) {
+									if (pressedKeys[realDir]) { newDir = realDir; break; }
+								}
+								player.changingDir = (player.dir != realDir ? 1 : 0);
+								player.altDir = 0;
+								player.dir = realDir;
+							}
 						}
 					}
 				});
@@ -646,20 +749,22 @@
 					var player = gameInfo.players[gameInfo.me];
 					if (e.keyCode == 32) {
 						e.preventDefault();
-						if (!player.isDead) {
+						if (!player.isDead && gameInfo.playing) {
 							layBomb();
 						}
 					}
 					else if (e.keyCode == 13) {
 						e.preventDefault();
-						if (player.isDead) {
+						if (gameInfo.pickingName) {
+							$("#bmNameBtn").click();
+						} else if (player.isDead && gameInfo.playing) {
 							player.isDead = false;
 							spawnPlayer(player.color);
 						}
 					}
 					else if (e.keyCode >= 37 && e.keyCode <= 40) {
 						e.preventDefault();
-						if (!player.isDead) {
+						if (!player.isDead && gameInfo.playing) {
 							var letter;
 							switch (e.keyCode) {
 								case 37:
@@ -689,7 +794,24 @@
 						}
 					}
 				});
-				
+				$("#bmNameBtn").click(function(e) {
+					var name = $("#bmName").val();
+					if (isValidName(name)) {
+						console.log("good");
+						if (gameInfo.namelist.indexOf(name) >= 0) {
+							console.log("name taken");
+						} else {
+							console.log("name ava");
+							gameInfo.pickingColor = true;
+							gameInfo.pickingName = false;
+							$("#bmNameBtn, #bmName").hide();
+							drawChoosePlayer();
+						}
+					} else {
+						console.log("bad");
+					}
+					//bmsocket.emit('query', gameInfo.gameID);
+				});
 				
 				// *********** DEBUG ******************
 				
@@ -723,6 +845,61 @@
 					});
 				});
 				
+				// *************** SOCKET ****************
+				// Create SocketIO instance, connect
+				var bmsocket = new io.connect('http://127.0.0.1:8080');
+
+				bmsocket.on('error',function(error) {
+					console.log(error);
+				});
+
+				// Add a connect listener
+				bmsocket.on('connect',function() {
+					bmsocket.emit('query', gameInfo.gameID);
+				});
+				bmsocket.on('connect_error', function(error) {
+					bmsocket.destroy();
+					alert('Server down');
+				});
+
+				bmsocket.on('query', function(resp) {
+					console.log(resp);
+					if (resp.c == "cng") {
+						//socket.emit('join', { name:"PsYcHoX88", color: "red", gameID: gameInfo.gameID });
+						gameInfo.pickingName = true;
+						gameInfo.pickingColor = false;
+						drawPlayerName();
+					} else if (resp.c == "info") {
+						gameInfo.availableColors = resp.ac;
+						gameInfo.namelist = resp.pl;
+						if (gameInfo.pickingColor) {
+							drawChoosePlayer();
+						}
+					}
+				});
+
+				bmsocket.on('query_error', function(error) {
+					if (error.c == "igi") {
+						console.log("Error - Invalid Game ID");
+					} else if (error.c == "gif") {
+						alert("Game Is Full");
+					}
+				});				
+				// Add a connect listener
+				bmsocket.on('message',function(data) {
+					console.log('Received a message from the server!',data);
+				});
+				// Add a disconnect listener
+				bmsocket.on('disconnect',function() {
+					console.log('The client has disconnected!');
+				});
+				function isValidName(name) {
+					return name.match(/^[A-Za-z]{1}[A-Za-z0-9_-]{1,14}$/);
+				}
+				function sendToServer(type, data) {
+					bmsocket.emit('join', data);
+				}
+
 			//});			
 		</script>
 	</BODY>

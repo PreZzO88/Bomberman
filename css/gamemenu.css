@@ -1,0 +1,279 @@
+body {
+	margin-top: 30px;
+	background-color: #4D7195;
+}
+#container {
+	width: 700px;
+	height: 336px;
+	margin: 0 auto;
+	text-align: center;
+	position: relative;
+}
+#serverList {
+	width: 452px;
+	display: inline-block;
+	position: absolute;
+	top: 0px;
+	left: 0px;
+}
+.header {
+	height: 36px;
+	text-align: left;
+	background: #6e8499; /* Old browsers */
+	background: -moz-linear-gradient(top,  #6e8499 0%, #356aa0 98%); /* FF3.6+ */
+	background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#6e8499), color-stop(98%,#356aa0)); /* Chrome,Safari4+ */
+	background: -webkit-linear-gradient(top,  #6e8499 0%,#356aa0 98%); /* Chrome10+,Safari5.1+ */
+	background: -o-linear-gradient(top,  #6e8499 0%,#356aa0 98%); /* Opera 11.10+ */
+	background: -ms-linear-gradient(top,  #6e8499 0%,#356aa0 98%); /* IE10+ */
+	background: linear-gradient(to bottom,  #6e8499 0%,#356aa0 98%); /* W3C */
+	filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#6e8499', endColorstr='#356aa0',GradientType=0 ); /* IE6-9 */
+	border: 2px solid #363636;
+}
+.header span {
+	text-shadow: 1px 1px #000000;				
+	display: inline-block;
+	height: 100%;
+	padding-left: 5px;
+	text-align: left;
+	line-height: 36px;
+	font-family: verdana;
+	font-size: 10pt;
+	color: #FFFFFF;
+	border-right: 1px solid #363636;
+}
+#serverList .header {
+	border-radius: 5px 0px 0px 0px;
+}
+#serverList span.serverNum {
+	width: 20px;
+}
+#serverList span.serverName {
+	width: 313px;
+}
+#serverList span.serverPlayers {
+	width: 84px;
+	text-align: center;
+	padding-left: 0px;
+}
+#serverList .servers {
+	overflow-y: scroll;
+	height: 228px;
+	border-left: 2px solid #363636;
+	border-bottom: 2px solid #363636;
+	border-right: 2px solid #363636;
+	background-color: #27557A;
+}
+#serverList .servers .server, #scoreboard .playerList .namescore {
+	text-align: left;
+	height: 26px;
+}
+.selectedRoom {
+	background-color: #6597BF!important;
+}
+#serverList .servers div.server:nth-child(odd), #scoreboard .playerList div.namescore:nth-child(odd) {
+	background-color: #2C5D85;
+}
+#serverList .servers div.server:hover {
+	background-color: #6597BF;
+	cursor: pointer;
+}
+#serverList .servers .server span, #scoreboard .playerList .namescore span {
+	text-align: left;
+	font-size: 10pt;
+	font-family: verdana;
+	color: #EBEEF0;
+	vertical-align: top;
+	line-height:22px;
+	display: inline-block;
+	padding-left: 6px;
+}
+#serverList .servers .server span.serverPlayers, #scoreboard .playerList span.serverPlayerScore {
+	padding-left: 0px;
+	text-align: center;
+}
+#scoreboard {
+	width: 250px;
+	text-align: left;
+	display: inline-block;
+	position: absolute;
+	border-radius: 0px 5px 0px 0px;
+	top: 0px;
+	right: 0px;
+}
+#scoreboard .header {
+	border-radius: 0px 5px 0px 0px;
+}
+#scoreboard .playerList {
+	overflow-y: scroll;
+	height: 228px;
+	border-left: 2px solid #363636;
+	border-bottom: 2px solid #363636;
+	border-right: 2px solid #363636;
+	background-color: #27557A;
+
+}
+#serverList .servers span.serverPlayerName, #scoreboard .playerList span.serverPlayerName {
+	overflow: hidden;
+}
+#scoreboard span.serverPlayerName {
+	width: 168px;
+}
+#scoreboard span.serverPlayerScore {
+	width: 53px;
+	text-align: center;
+	padding-left: 0px;
+}
+#buttonBar {
+	width: 696px;
+	height: 47px;
+	padding-top: 17px;
+	border: 2px solid #363636;
+	position: absolute;
+	background-color: #6597BF;
+	top: 268px;
+	left: 0px;
+	border-radius: 0px 0px 5px 5px;
+}
+input[type=button] {
+	width: 145px;
+	height: 30px;
+	margin-right: 10px;
+	margin-left: 10px;
+	background: #6e8499; /* Old browsers */
+	background: -moz-linear-gradient(top,  #6e8499 0%, #356aa0 98%); /* FF3.6+ */
+	background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#6e8499), color-stop(98%,#356aa0)); /* Chrome,Safari4+ */
+	background: -webkit-linear-gradient(top,  #6e8499 0%,#356aa0 98%); /* Chrome10+,Safari5.1+ */
+	background: -o-linear-gradient(top,  #6e8499 0%,#356aa0 98%); /* Opera 11.10+ */
+	background: -ms-linear-gradient(top,  #6e8499 0%,#356aa0 98%); /* IE10+ */
+	background: linear-gradient(to bottom,  #6e8499 0%,#356aa0 98%); /* W3C */
+	filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#6e8499', endColorstr='#356aa0',GradientType=0 ); /* IE6-9 */
+	border: 1px solid #000000;
+	outline: none;
+	border-radius: 5px;
+	font-family: verdana;
+	font-size: 10pt;
+	color: #EBEEF0;
+	text-shadow: 1px 1px #000000;
+}
+input[type=button]:hover {
+	text-shadow: -1px -1px #000000;
+	border: 1px solid #FFFFFF;
+	cursor: pointer;
+}
+#buttonBar input[type=text] {
+	background-color: #27557A;
+	border-radius: 5px;
+	font-family: verdana;
+	border: 1px solid #000000;
+	outline: none;
+	font-size: 10pt;
+	height: 20px;
+	padding-left: 5px;
+	margin-top: 2px;
+	color: #EBEEF0;
+}
+#buttonBar .toggledOn {
+	border: 1px solid #FFFFFF!important;
+}
+#buttonBar #createNewRoomCont {
+	display: none;
+	margin-top: 20px;
+	height: 100px;
+}
+#buttonBar #createNewRoomCont label {
+	color: #EBEEF0;
+	font-family: Verdana;
+	font-size: 11pt;
+	display: inline-block;
+	width: 110px;
+	text-shadow: 1px 1px #000000;
+	text-align: left;
+}
+#buttonBar #createNewRoomCont .spriteLabel {
+	display: inline-block;
+	margin: 19px 13px 0px 13px;
+}
+#buttonBar #createNewRoomCont .spriteLabel label {
+	width: 30px;
+}
+#buttonBar .spriteCont {
+	display: inline-block;
+	vertical-align: top;
+	width: 140px;
+}
+#buttonBar .roomAndPlayerCont {
+	display: inline-block;
+	vertical-align: top;
+	margin-top: 2px;
+}
+#buttonBar #createNewRoomCont #createNewRoomConfirmBtn, #buttonBar #createNewRoomCont #joinRoomConfirmBtn {
+	display: none;
+	margin-top: 5px;
+}
+.bmsprites {
+	background-image: url('../imgs/bmcache.png');
+	background-repeat: no-repeat;
+	width: 31px;
+	height: 25px;
+	margin: 1px;
+	display: inline-block;
+	position: relative;
+}
+.bmsprites:hover {
+	background-color: #006BB9;
+	opacity: 0.50;
+	border: 1px solid #000000;
+	cursor: pointer;
+	margin: -1px 0px 0px 0px;
+	border-radius: 5px;
+}
+.spriteCont .selected {
+	background-color: #006BB9;
+	opacity: 0.50;
+	border: 1px solid #000000;
+	margin: -1px 0px 0px 0px;
+	border-radius: 5px;	
+}
+.spriteCont .notAvailable {
+	position: absolute;
+	top: -4px;
+	left: 0px;
+	font-family: sans-serif;
+	font-size: 22pt;
+	color: #FF0000;
+	text-align: center;
+	width: 31px;
+	display: none;
+}
+#errorBox {
+	position: absolute;
+	left: 183px;
+	top: 109px;
+	width: 300px;
+	height: 100px;
+	display: inline-block;
+	border-radius: 5px;
+	border: 2px solid #363636;
+	background-color: rgba(230,230,230,0.92);
+	padding: 15px;
+	display: none;
+}
+#errorBox #errorBoxTxt {
+	font-family: verdana;
+	font-size: 12pt;
+	color: #000000;
+	text-shadow: -1px -1px #d3d3d3;
+	text-align: center;
+	display: table-cell;
+	vertical-align: middle;
+}
+#errorBox .errorBoxTxtCont {
+	width: 300px;
+	height: 60px;
+	display: table;
+}
+#errorBox #errorBoxCloseBtn {
+	position: absolute;
+	bottom: 15px;
+	left: 83px;
+}
