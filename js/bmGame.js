@@ -1,12 +1,14 @@
+var gameInfo = {};
 var bmGame = function () {
 	// Bomberman coded by David Preseault.
 	// Note: Sprites and gameplay based on Jippii.fr Bomberman Game.
+	// Sounds are not mine, they are owned by http://www.freesfx.co.uk.
 
 	var ctx = $("#canvas")[0].getContext("2d");
 	var fpsctr = 0;
 	var ts = new Date().getTime();
 	var pressedKeys = { u: false, d: false, l: false, r: false };
-	var gameInfo = {
+	gameInfo = {
 		bgcolor: "#4D7195",
 		boardcolor: "#0075B9",
 		board: [],
@@ -15,21 +17,16 @@ var bmGame = function () {
 		boardw: 571,
 		boardh: 451,
 		assist: 4,
-		me: "red",
+		me: "",
 		bmcache: $("#bmcache")[0],
 		alternateAnimationSpeed: 200,
-		players: { 
-			red: { x: 0, y: 0, isDead: false, color: "red", dir: "d", altDir: 0, c: 0, isStopping: 0, isStopped: 1, speed: "fastest", changingDir: 0, nobp: 0, noba: 2, expStr: 1, lastLay: {} }
-		},
+		players: { },
 		entityBitmap: {},
 		spawnPoints: [],
-		namelist: [],
-		availableColors: { pink: true, cyan: true, red: true, yellow: true, blue: true, lime: true, gold: true, green: true },
 		colors: [ "pink", "cyan", "red", "yellow", "blue", "lime", "gold", "green" ],
 		activeBombs: [],
 		activeExplosions: [],
 		playing: false,
-		speed: { normal: 0.5, fast: 0.75, fastest: 1 }
 	};
 
 	prepare();
@@ -67,60 +64,70 @@ var bmGame = function () {
 				h = player.h;
 				dir = player.dir;
 				isStopped = player.isStopped;
-				speed = gameInfo.speed[player.speed];
+				speed = player.speed;
 				assist = false;
 				if (!isStopped) {
-					// If player has changed direction, adjust xy, checking for collisions.
-					if (player.changingDir) {
-						var newW = gameInfo.entityBitmap[color][dir + 0].w;
-						var newH = gameInfo.entityBitmap[color][dir + 0].h;
-						var testNewX = player["c"].x - Math.floor(newW/2);
-						if (player.dir == "u" || player.dir == "d") {
-							// Get new x using old centre
-							var boundaries = calculatePlayerBoundaries(testNewX, y, newW, newH, speed);
-							var collisionLeft = (isCollision(boundaries.ltp) || isCollision(boundaries.lbp));
-							var collisionRight = (isCollision(boundaries.rtp) || isCollision(boundaries.rbp));
-							if (collisionLeft || collisionRight) { x = (Math.floor(((x - gameInfo.boardx) / 30)) * 30) + gameInfo.boardx + 1; }
-							else { x = testNewX; }
-						} else {
-							x = testNewX;
-						}
-						player.changingDir = 0;
-						drawPlayer(color, x, y, dir, 0);
-					} else {
-						collision = checkForCollisions(player);
-						if (collision != false) {
-							if (collision.both) {
-								drawPlayer(color, x, y, dir, 0);
-								player.isStopping = 0;
-								player.isStopped = 1;
+					if (gameInfo.me == color) {
+						// If player has changed direction, adjust xy, checking for collisions.
+						if (player.changingDir) {
+							var newW = gameInfo.entityBitmap[color][dir + 0].w;
+							var newH = gameInfo.entityBitmap[color][dir + 0].h;
+							var testNewX = player["c"].x - Math.floor(newW/2);
+							if (player.dir == "u" || player.dir == "d") {
+								// Get new x using old centre
+								var boundaries = calculatePlayerBoundaries(testNewX, y, newW, newH, speed);
+								var collisionLeft = (isCollision(boundaries.ltp) || isCollision(boundaries.lbp));
+								var collisionRight = (isCollision(boundaries.rtp) || isCollision(boundaries.rbp));
+								if (collisionLeft || collisionRight) { x = (Math.floor(((x - gameInfo.boardx) / 30)) * 30) + gameInfo.boardx + 1; }
+								else { x = testNewX; }
 							} else {
-								assist = checkForPlayerAssist(collision.middle,dir,collision.empty);
-								if (assist != false) {
-									switch (dir) {
-										case "u":
-											movePlayer(color, assist+1, y-speed, speed, dir);
-											break;
-										case "d":
-											movePlayer(color, assist+1, y+speed, speed, dir);
-											break;
-										case "l":
-											movePlayer(color, x-speed, assist+4, speed, dir);
-											break;
-										case "r":
-											movePlayer(color, x+speed, assist+4, speed, dir);
-											break;
-									}
-								} else {
+								x = testNewX;
+							}
+							player.changingDir = 0;
+							drawPlayer(color, x, y, dir, 0);
+							player.sentUpd2Srv = false;
+							sendChangeDir(player.x, player.y, dir, 0);
+						} else {
+							collision = checkForCollisions(player);
+							if (collision != false) {
+								if (collision.both) {
 									drawPlayer(color, x, y, dir, 0);
 									player.isStopping = 0;
 									player.isStopped = 1;
+									sendStopMoving(player.x, player.y, dir);
+								} else {
+									assist = checkForPlayerAssist(collision.middle,dir,collision.empty);
+									if (assist != false) {
+										switch (dir) {
+											case "u":
+												movePlayer(color, assist+1, y-speed, speed, dir);
+												break;
+											case "d":
+												movePlayer(color, assist+1, y+speed, speed, dir);
+												break;
+											case "l":
+												movePlayer(color, x-speed, assist+4, speed, dir);
+												break;
+											case "r":
+												movePlayer(color, x+speed, assist+4, speed, dir);
+												break;
+										}
+										player.sentUpd2Srv = false;
+										sendChangeDir(player.x, player.y, dir, player.altDir);
+									} else {
+										drawPlayer(color, x, y, dir, 0);
+										player.isStopping = 0;
+										player.isStopped = 1;
+										sendStopMoving(player.x, player.y, dir);
+									}
 								}
+							} else {
+								// If no collisions, move player.
+								movePlayer(color, x, y, speed, dir);
 							}
-						} else {
-							// If no collisions, move player.
-							movePlayer(color, x, y, speed, dir);
 						}
+					} else {
+						movePlayer(color, x, y, speed, dir);
 					}
 				} else {
 					// if not moving, just draw last known dir and non-moving position.
@@ -137,13 +144,13 @@ var bmGame = function () {
 	// Check for potential collisions for specified player.
 	function checkForCollisions(player) {
 		var x, y, w, h, dir, speed, player, pair1, pair2, point, boundaries;
-		player = gameInfo.players[color];
+		player = gameInfo.players[player.color];
 		x = player.x;
 		y = player.y;
 		w = player.w;
 		h = player.h;
 		dir = player.dir;
-		speed = gameInfo.speed[player.speed];
+		speed = player.speed;
 		boundaries = calculatePlayerBoundaries(x, y, w, h, speed);
 		
 		switch (dir) {
@@ -170,9 +177,14 @@ var bmGame = function () {
 		}
 		var collisionPair1 = isCollision(pair1);
 		var collisionPair2 = isCollision(pair2);
+		if (player.isDead) {
+			player.score--;
+			showScores();
+			bmsocket.emit('playerDied');
+		}
 		if (collisionPair1 || collisionPair2) {
 			var collision = { };
-			if (collisionPair1 == collisionPair2) {
+			if (collisionPair1 == collisionPair2 || player.isDead) {
 				collision.both = true;
 			} else {
 				collision.both = false;
@@ -244,21 +256,27 @@ var bmGame = function () {
 			}
 		} else if (item == "f" || item == "g" || item == "h") {
 			player.isDead = true;
+			return true;
+		} else if (item == "p" || item == "m" || item == "s" || item == "i") {
 			return false;
 		}
-		//console.log(row + " " + col + " " + "collision: " + (gameInfo.board[row][col] != "e") + " " + gameInfo.players[gameInfo.me].dir);
 		return (item != "e");
 	}
 	function checkIfPlayerDead() {
 		var player = gameInfo.players[gameInfo.me];
-		var row = Math.floor((player.c.y - gameInfo.boardy) / 30) + 1;
-		var col = Math.floor((player.c.x - gameInfo.boardx) / 30) + 1;
-		var item = gameInfo.board[row][col];
-		if (item == "f" || item == "g" || item == "h") {
-			player.isDead = true;
-			return true;
-		} else {
-			return false;
+		if (!player.isDead) {
+			var row = Math.floor((player.c.y - gameInfo.boardy) / 30) + 1;
+			var col = Math.floor((player.c.x - gameInfo.boardx) / 30) + 1;
+			var item = gameInfo.board[row][col];
+			if (item == "f" || item == "g" || item == "h") {
+				player.isDead = true;
+				player.score--;
+				showScores();
+				bmsocket.emit('playerDied');
+				return true;
+			} else {
+				return false;
+			}
 		}
 	}
 	// Move player in provided direction and speed.
@@ -280,7 +298,16 @@ var bmGame = function () {
 			gameInfo.players[color].altDir = 0;
 			gameInfo.players[color].isStopping = 0;
 			gameInfo.players[color].isStopped = 1;
+			if (color == gameInfo.me) {
+				sendStopMoving(x, y, dir);
+			}
 		}
+		else {
+			if (color == gameInfo.me) {
+				sendChangeDir(x, y, dir, altDir);
+			}
+		}
+		
 		gameInfo.players[color].altDir = altDir;
 		drawPlayer(color, x, y, dir, altDir);
 	}
@@ -294,10 +321,7 @@ var bmGame = function () {
 			var row = Math.floor((center.y - 20) / 30) + 1;
 			var col = Math.floor((center.x - 20) / 30) + 1;
 			if (gameInfo.board[row][col] != "a") {
-				gameInfo.board[row][col] = "a";
-				player.nobp++;
-				gameInfo.activeBombs.push({ row: row, col: col, ts: new Date().getTime(), owner: player });
-				player.lastLay = { r: row, c: col };
+				bmsocket.emit('layBomb', { r: row, c: col });
 			}
 		}
 	}
@@ -308,7 +332,9 @@ var bmGame = function () {
 			ab = gameInfo.activeBombs[n];
 			if (time - ab.ts >= 5000) {
 				gameInfo.board[ab.row][ab.col] = "e";
-				ab.owner.nobp--;
+				if (ab.owner.color == gameInfo.me) {
+					ab.owner.nobp--;
+				}
 				gameInfo.activeBombs.splice(n,1);
 				explode(ab);
 			}
@@ -320,7 +346,11 @@ var bmGame = function () {
 		for (var n = gameInfo.activeExplosions.length-1; n >= 0; n--) {
 			ae = gameInfo.activeExplosions[n];
 			if (time - ae.ts >= 2000) {
-				gameInfo.board[ae.row][ae.col] = "e";
+				if (typeof ae.i2s !== "undefined") {
+					gameInfo.board[ae.row][ae.col] = ae.i2s;
+				} else {
+					gameInfo.board[ae.row][ae.col] = "e";
+				}
 				gameInfo.activeExplosions.splice(n,1);
 			}
 		}	
@@ -329,26 +359,28 @@ var bmGame = function () {
 		//f up/down
 		// g middle
 		// h left/right
+		playSound("explode");
 		var player = bomb.owner;
 		var expStr = player.expStr;
 		var row = bomb.row;
 		var col = bomb.col;
-		//gameInfo.board[row][col] = "g";
-		addNewExplosion(row, col, "g");
+		var items = bomb.items;
+		addNewExplosion(row, col, "g", false);
+		playSound("fire");
 		if (row > 1) {
-			renderExplosion(expStr, row, col, "u", false);
+			renderExplosion(expStr, row, col, "u", false, items.u);
 		}
 		if (row < 15) { 
-			renderExplosion(expStr, row, col, "d", false);
+			renderExplosion(expStr, row, col, "d", false, items.d);
 		}
 		if (col > 1) {
-			renderExplosion(expStr, row, col, "l", true);
+			renderExplosion(expStr, row, col, "l", true, items.l);
 		}
 		if (col < 19) {
-			renderExplosion(expStr, row, col, "r", true);
+			renderExplosion(expStr, row, col, "r", true, items.r);
 		}
 	}
-	function renderExplosion(expStr, row, col, dir, isHorizontal) {
+	function renderExplosion(expStr, row, col, dir, isHorizontal, items) {
 		var typeOfFire = (isHorizontal ? "h" : "f");
 		var newRow = row, newCol = col;
 		for (var n = 1; n <= expStr; n++) {
@@ -358,24 +390,35 @@ var bmGame = function () {
 			if (item == "w" || item == "o") {
 				break;
 			} else if (item == "b") {
-				addNewExplosion(newRow, newCol, typeOfFire);
-				break;
+				if (typeof items == "undefined") {
+					addNewExplosion(newRow, newCol, typeOfFire, false);
+					break;
+				} else {
+					if (items.r == newRow && items.c == newCol) {
+						addNewExplosion(newRow, newCol, typeOfFire, items.i);
+					}
+					break;
+				}
 			} else if (item == "a") {
 				var bombsInCrossfire = $.grep(gameInfo.activeBombs, function(b) { return b.row == newRow && b.col == newCol; });
 				if (bombsInCrossfire.length > 0) {
 					for (bombs in bombsInCrossfire) {
-						addNewExplosion(newRow, newCol, typeOfFire);
+						addNewExplosion(newRow, newCol, typeOfFire, false);
 						bombsInCrossfire[bombs].ts = new Date().getTime() - 4500;
 					}
 				}
 			} else {
-				addNewExplosion(newRow, newCol, typeOfFire);
+				addNewExplosion(newRow, newCol, typeOfFire, false);
 			}
 		}
 	}
-	function addNewExplosion(row, col, typeOfFire) {
+	function addNewExplosion(row, col, typeOfFire, itemsToShow) {
 		gameInfo.board[row][col] = typeOfFire;
-		gameInfo.activeExplosions.push({ row: row, col: col, ts: new Date().getTime() });
+		var aeObj = { row: row, col: col, ts: new Date().getTime() };
+		if (itemsToShow !== false) { 
+			aeObj.i2s = itemsToShow;
+		}
+		gameInfo.activeExplosions.push(aeObj);
 	}
 	// Draw items, excluding players.
 	function drawItem(item, x, y) {
@@ -420,7 +463,7 @@ var bmGame = function () {
 		var w = gameInfo.entityBitmap[color][direction + alt].w;
 		var h = gameInfo.entityBitmap[color][direction + alt].h;
 		var player = gameInfo.players[color];
-		var speed = Math.ceil(gameInfo.speed[player.speed]);
+		var speed = Math.ceil(player.speed);
 		var boundaries = calculatePlayerBoundaries(x, y, w, h, speed);
 
 		player.x = x;
@@ -433,11 +476,12 @@ var bmGame = function () {
 		ctx.drawImage(bmcache, gameInfo.entityBitmap[color][direction + alt].x, gameInfo.entityBitmap[color][direction + alt].y, w, h, x, y, w, h);
 	}
 
-	function spawnPlayer(color) {
-		var rand = Math.floor(Math.random() * 8);
-		var sp = gameInfo.spawnPoints[rand];
-		//var sp = gameInfo.spawnPoints[0];
-		//console.log(sp.x + " " + sp.y + " " + rand);
+	function spawnPlayer(color, pos) {
+		var sp = gameInfo.spawnPoints[pos];
+		gameInfo.players[color].isDead = false;
+		gameInfo.players[color].speed = 0.5;
+		gameInfo.players[color].expStr = 1;
+		gameInfo.players[color].noba = 1;
 		drawPlayer(color, sp.x, sp.y, "d", 0);
 	}
 
@@ -491,10 +535,14 @@ var bmGame = function () {
 	function loadEntityBitmap() {
 		gameInfo.entityBitmap["w"] = { x: 0, y: 30, w: 31, h: 31 };
 		gameInfo.entityBitmap["b"] = { x: 0, y: 0, w: 31, h: 31 };
-		gameInfo.entityBitmap["bomb"] = { x: 1, y: 145, w: 28, h: 30 };
-		gameInfo.entityBitmap["armor"] = { x: 36, y: 203, w: 22, h: 27 };
-		gameInfo.entityBitmap["speed"] = { x: 1, y: 62, w: 30, h: 22 };
-		gameInfo.entityBitmap["exp"] = { x: 4, y: 85, w: 24, h: 26 };
+		// m = more bombs
+		gameInfo.entityBitmap["m"] = { x: 0, y: 145, w: 29, h: 30 };
+		// i = armor invincibility temp
+		gameInfo.entityBitmap["i"] = { x: 32, y: 201, w: 26, h: 29 };
+		// s = speed pickup
+		gameInfo.entityBitmap["s"] = { x: 131, y: 242, w: 31, h: 26 };
+		// e = explosion upgrade
+		gameInfo.entityBitmap["p"] = { x: 1, y: 83, w: 27, h: 28 };
 		gameInfo.entityBitmap["a"] = { x: 0, y: 112, w: 30, h: 31 };
 		gameInfo.entityBitmap["f"] = { x: 0, y: 177, w: 30, h: 30 };
 		gameInfo.entityBitmap["g"] = { x: 88, y: 240, w: 30, h: 30 };
@@ -534,6 +582,15 @@ var bmGame = function () {
 			y += 30;
 		}
 	}
+	// Load sounds
+	function loadSounds() {
+		gameInfo.sounds = {
+			"fuse" : new Howl({ urls: ['snds/fuse.mp3'], autoplay: false }),
+			"flame" : new Howl({ urls: ['snds/flame.mp3'], autoplay: false }),
+			"explode" : new Howl({ urls: ['snds/explode.mp3'], autoplay: false }),
+			"gameover" : new Howl({ urls: ['snds/gameover.mp3'], autoplay: false })
+		};
+	}
 
 	// Initial Loading.
 	function prepare() {
@@ -545,6 +602,7 @@ var bmGame = function () {
 		loadEntityBitmap();				
 		loadBoardTiles();
 		loadSpawnPoints();
+		loadSounds();
 		
 		// Board
 		redrawBoard();
@@ -560,6 +618,24 @@ var bmGame = function () {
 		//mainRender();
 		
 	}
+	function playSound(snd) {
+		switch (snd) {
+			case "bomb":
+				gameInfo.sounds["fuse"].play();
+				break;
+			case "fire":
+				gameInfo.sounds["flame"].play();
+				break;
+			case "explode":
+				gameInfo.sounds["explode"].play();
+				break;
+			case "gameover":
+				gameInfo.sounds["gameover"].play();
+				break;
+			default:
+				break;
+		}
+	}
 	function getGameID() {
 		var params = window.location.search.substring(1).split("&");
 		for (param in params) {
@@ -573,8 +649,44 @@ var bmGame = function () {
 	function showScores() {
 		ctx.fillStyle = gameInfo.bgcolor;
 		ctx.fillRect(605,15,180,460);
-		for (var n = 0; n < 8; n++) {
-			drawBox(610,20 + (n * 57), 170, 50, '#496B8D');
+		var scores = [];
+		for (var player in gameInfo.players) {
+			scores.push({ c: player, s: gameInfo.players[player].score });
+		}
+		scores.sort(function(a,b) { return b.s - a.s; });
+		for (var n = 0; n < scores.length; n++) {
+			var y = 20 + (n * 57);
+			var color = scores[n].c;
+			var score = scores[n].s;
+			var name = gameInfo.players[color].name;
+			var ping = gameInfo.players[color].ping;
+
+			drawBox(610,y, 170, 50, '#496B8D');
+			ctx.drawImage(bmcache, gameInfo.entityBitmap[color]["d0"].x, gameInfo.entityBitmap[color]["d0"].y, 29, 23, 616, y+14, 29, 23);
+
+			// Player Name
+			ctx.font = "10pt verdana";
+			var textWidth = ctx.measureText(name).width;
+			// Clip overflow (if any)
+			while (textWidth >= 126) {
+				name = name.substr(0,name.length - 1);
+				textWidth = ctx.measureText(name).width;
+			}
+			ctx.fillStyle = "#000000";
+			ctx.fillText(name, 650, y + 20);
+			ctx.fillStyle = "#FFFFFF";
+			ctx.fillText(name, 649, y + 19);
+
+			// Score and Latency
+			ctx.font = "9pt Tahoma";
+			ctx.fillStyle = "#000000";
+			ctx.fillText('Score: ' + score, 650, y + 40);
+			ctx.fillText('Ping: ' + ping, 720, y + 40);
+
+			// Shadow Effect
+			ctx.fillStyle = "#EBEEF0";
+			ctx.fillText('Score: ' + score, 649, y + 39);
+			ctx.fillText('Ping: ' + ping, 719, y + 39);
 		}
 	}
 
@@ -595,48 +707,35 @@ var bmGame = function () {
 		ctx.lineTo(x + offset, y + h);
 		ctx.lineTo(x, y + h - offset);
 		ctx.lineTo(x, y + offset);
-		ctx.closePath();
+		//ctx.closePath();
 		//ctx.fillStyle = '#496B8D';
 		//ctx.fillStyle = 'rgba(0,0,200,0.25)';
 		ctx.fillStyle = fillStyle;
 		ctx.fill();
 		ctx.strokeStyle = "#000000";
 		ctx.stroke();
+		
+		ctx.beginPath();
+		ctx.moveTo(x + 1, y + h - offset);
+		ctx.lineTo(x + 1, y + offset + 1);
+		ctx.lineTo(x + 1 + offset, y + 1);
+		ctx.lineTo(w + x - offset, y + 1);
+		//ctx.closePath();
+		ctx.strokeStyle = "#99B1CA";
+		ctx.stroke();
+
+		ctx.beginPath();
+		ctx.moveTo(w + x - 1, y + offset);
+		ctx.lineTo(w + x - 1, y + h - 1 - offset);
+		ctx.lineTo(w + x - 1 - offset, y + h - 1);
+		ctx.lineTo(x + offset - 1, y + h - 1);
+
+		//ctx.closePath();
+		ctx.strokeStyle = "#2D4257";
+		ctx.stroke();
+		
 	}
-	function drawPlayerName() {
-		drawBox(610, 188, 170, 115, '#496B8D');
-		ctx.font = "10pt verdana";
-		ctx.fillStyle = "#FFFFFF";
-		ctx.fillText("Enter Player Name", 632, 285);
-		$("#bmName").show();
-		$("#bmNameBtn").show();
-	}
-	function drawChoosePlayer() {
-		var x = 625, y = 203;
-		drawBox(x - 15, y - 15, 170, 115, '#496B8D');
-		for (color in gameInfo.colors) {
-			if (color == 4) {
-				x = 625;
-				y += 35;
-			}
-			var player = gameInfo.entityBitmap[gameInfo.colors[color]]["d0"];
-			ctx.drawImage(bmcache, player.x, player.y, player.w, player.h, x, y, player.w, player.h);
-			if (!gameInfo.availableColors[gameInfo.colors[color]]) {
-				ctx.beginPath();
-				ctx.moveTo(x, y);
-				ctx.lineTo(x + 30, y+23);
-				ctx.moveTo(x + 30, y);
-				ctx.lineTo(x, y+23);
-				ctx.closePath();
-				ctx.strokeStyle = "rgb(255,0,0)";
-				ctx.stroke();
-			}
-			x += 35;
-		}
-		ctx.font = "10pt verdana";
-		ctx.fillStyle = "#FFFFFF";
-		ctx.fillText("Choose a Color!", 640, 285);
-	}
+
 
 	// ***** LISTENERS - KEYS
 
@@ -666,100 +765,183 @@ var bmGame = function () {
 				var player = gameInfo.players[gameInfo.me];
 				if (!pressedKeys.u && !pressedKeys.r && !pressedKeys.d && !pressedKeys.l) {
 					player.isStopping = 1;
+					//sendStopMoving(player.x, player.y, player.dir);
 				} else {
 					var newDir;
 					for (realDir in pressedKeys) {
 						if (pressedKeys[realDir]) { newDir = realDir; break; }
 					}
-					player.changingDir = (player.dir != realDir ? 1 : 0);
+					player.changingDir = (player.dir != newDir ? 1 : 0);
 					player.altDir = 0;
-					player.dir = realDir;
+					player.dir = newDir;
+					sendChangeDir(player.x, player.y, newDir, 0);
+					if (player.isStopped) {
+						sendStopMoving(player.x, player.y, newDir);
+					}
 				}
 			}
 		}
 	});
 	$(document).keydown(function(e) {
-		var player = gameInfo.players[gameInfo.me];
-		if (e.keyCode == 32) {
-			e.preventDefault();
-			if (!player.isDead && gameInfo.playing) {
-				layBomb();
-			}
-		}
-		else if (e.keyCode == 13) {
-			e.preventDefault();
-			if (player.isDead && gameInfo.playing) {
-				player.isDead = false;
-				spawnPlayer(player.color);
-			}
-		}
-		else if (e.keyCode >= 37 && e.keyCode <= 40) {
-			e.preventDefault();
-			if (!player.isDead && gameInfo.playing) {
-				var letter;
-				switch (e.keyCode) {
-					case 37:
-						letter = "l";
-						break;
-					case 38:
-						letter = "u";
-						break;
-					case 39:
-						letter = "r";
-						break;
-					case 40:
-						letter = "d";
-						break;
+		if (gameInfo.playing) {
+			var player = gameInfo.players[gameInfo.me];
+			if (e.keyCode == 32) {
+				e.preventDefault();
+				if (!player.isDead) {
+					layBomb();
 				}
-				pressedKeys[letter] = true;
-				if (player.dir != letter || player.isStopped) {
-					player.changingDir = (player.dir != letter ? 1 : 0);
-					player.isStopped = 0;
-					player.dir = letter;
-					player.altDir = 0;
-				}
-				//38=up
-				//39=right
-				//40=down
-				//37=left
 			}
-		}
-	});
-
-	// *********** DEBUG ******************
-
-	$("#clearBricks").click(function(e) {
-		for (var r = 1; r < gameInfo.board.length-1; r++ ) {
-			for (var c = 1; c < gameInfo.board[r].length-1; c++) {
-				if (gameInfo.board[r][c] != "w") {
-					gameInfo.board[r][c] = "e";
+			else if (e.keyCode == 13) {
+				e.preventDefault();
+				if (player.isDead) {
+					bmsocket.emit('spawnReq');
+				}
+			}
+			else if (e.keyCode >= 37 && e.keyCode <= 40) {
+				e.preventDefault();
+				if (!player.isDead) {
+					var letter;
+					switch (e.keyCode) {
+						case 37:
+							letter = "l";
+							break;
+						case 38:
+							letter = "u";
+							break;
+						case 39:
+							letter = "r";
+							break;
+						case 40:
+							letter = "d";
+							break;
+					}
+					pressedKeys[letter] = true;
+					if (player.dir != letter || player.isStopped) {
+						player.changingDir = (player.dir != letter ? 1 : 0);
+						player.isStopped = 0;
+						player.dir = letter;
+						player.altDir = 0;
+					}
+					//38=up
+					//39=right
+					//40=down
+					//37=left
 				}
 			}
 		}
-	});
-	$("#spawnRndSpot").click(function(e) {
-		spawnPlayer("red");
-	});
-
-	$(document).ready(function() {
-		for (prop in gameInfo.players.red) {
-			if (prop == "tlp") { break; }
-			if (prop == "c") { continue; }
-			$("#dbgPlayer").append('<label style="display: inline-block; width: 80px; margin-right: 5px;" for="dbg' + prop + '">' + prop + '</label><input style="width: 50px;" type="text" data-prop="' + prop + '" value="' + gameInfo.players.red[prop] + '" /><br />');
-		}
-		$("#dbgPlayer").append('<input type="button" value="Save" id="dbgplayerSave" />');
-		$("#dbgplayerSave").click(function(e) {
-			//console.log($("#dbgPlayer"));
-			$("#dbgPlayer").find("input[type=text]").each(function(i,e) {
-				var val = isNaN($(e).val()) ? $(e).val() : parseInt($(e).val());
-				if (val == "false" || val == "true") { val = (val == "true" ? true : false); }
-				gameInfo.players.red[$(e).attr("data-prop")] = val;
-			});
-		});
 	});
 
 	// *************** SOCKET ****************
 
+	bmsocket.on('spawn', function(data) {
+		console.log(data);
+		for (var sp in data.spawn) {
+			var spInfo = data.spawn[sp];
+			spawnPlayer(spInfo.c, spInfo.pos);	
+		}
+	});
+	
+	bmsocket.on('playerJoin', function(data) {
+		//console.log(data);
+		if (data.c == gameInfo.me) {
+			gameInfo.players[gameInfo.me] =  { x: 0, y: 0, ping: 0, isDead: true, name: data.n, color: data.c, dir: "d", altDir: 0, c: 0, isStopping: 0, isStopped: 1, speed: 0.5, changingDir: 0, nobp: 0, noba: 1, expStr: 1, lastLay: {}, sentUpd2Srv: false, score: 0 };
+			mainRender();
+			gameInfo.playing = true;
+		} else {
+			gameInfo.players[data.c] = {
+				name: data.n, x: 0, y: 0, ping: 0, isDis: false, isDead: true, color: data.c, dir: "d", altDir: 0, isStopped: 1, speed: 0.5, expStr: 1, score: 0
+			};
+			console.log(gameInfo.players[data.c]);
+		}
+		showScores();
+		//console.log(gameInfo.players);
+	});
+	bmsocket.on('layBomb', function(data) {
+		console.log(data);
+		playSound("bomb");
+		gameInfo.board[data.r][data.c] = "a";
+		gameInfo.activeBombs.push({ row: data.r, col: data.c, ts: new Date().getTime() - data.s, owner: gameInfo.players[data.o], items: data.i });
+		if (data.o == gameInfo.me) {
+			gameInfo.players[gameInfo.me].nobp++;
+			gameInfo.players[gameInfo.me].lastLay = { r: data.r, c: data.c };
+		}
+	});
+	bmsocket.on('changeDir', function(data) {
+		console.log(data);
+		var p = gameInfo.players[data.c];
+		p.x = data.d.x;
+		p.y = data.d.y;
+		p.dir = data.d.dir;
+		p.altDir = data.d.altDir;
+		p.isStopped = 0;
+	});
+	bmsocket.on('pickUp', function(data) {
+		var p = gameInfo.players[data.p];
+		gameInfo.board[data.r][data.c] = "e";
+		switch (data.i) {
+			case "s":
+				p.speed+=0.25;
+				break;
+			case "m":
+				p.noba++;
+				break;
+			case "p":
+				p.expStr++;
+				break;
+			case "i":
+				//player-armor
+				break;
+			default:
+				break;
+		}
+	});
+	bmsocket.on('playerDied', function(data) {
+		var p = gameInfo.players[data.c];
+		p.score--;
+		p.isDead = true;
+		showScores();
+	});
+	bmsocket.on('stopMoving', function(data) {
+		var p = gameInfo.players[data.c];
+		p.x = data.d.x;
+		p.y = data.d.y;
+		p.dir = data.d.dir;
+		p.isStopped = 1;
+	});
+	bmsocket.on('playerLeave', function(color) {
+		console.log(color);
+		gameInfo.players[color].isDead = true;
+		gameInfo.players[color].isDis = true;
+		delete gameInfo.players[color];
+		showScores();
+	});
+	bmsocket.on('gameBoard', function(data) {
+		console.log(data);
+		gameInfo.board = data.map(function(cols) { return cols.split(""); });
+	});
+	bmsocket.on('ping', function(data) {
+		bmsocket.emit('pong');
+		for (var player in data) {
+			gameInfo.players[data[player].c].ping = data[player].p;
+			showScores();
+		}
+	});
+	function sendStopMoving(x, y, dir) {
+		var player = gameInfo.players[gameInfo.me];
+		if (player.sentUpd2Srv) {
+			player.sentUpd2Srv = false;
+			//console.log("stopMoving", { x: x, y: y, dir: dir });
+			bmsocket.emit('stopMoving', { x: x, y: y, dir: dir });
+		}
+	}
+	function sendChangeDir(x, y, dir, altDir) {
+		var player = gameInfo.players[gameInfo.me];
+		if (!player.sentUpd2Srv) {
+			player.sentUpd2Srv = true;
+			bmsocket.emit('changeDir', { x: x, y: y, dir: dir, altDir: altDir });
+			//console.log("changingDir", { x: x, y: y, dir: dir, altDir: altDir });
+		}
+	}
 	function sendToServer(type, data) {
 		bmsocket.emit('join', data);
 	}

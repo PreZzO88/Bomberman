@@ -245,9 +245,14 @@ input[type=button]:hover {
 	width: 31px;
 	display: none;
 }
+#errorBox2 {
+	left: 233px;
+}
 #errorBox {
-	position: absolute;
 	left: 183px;
+}
+#errorBox, #errorBox2 {
+	position: absolute;
 	top: 109px;
 	width: 300px;
 	height: 100px;
@@ -258,7 +263,7 @@ input[type=button]:hover {
 	padding: 15px;
 	display: none;
 }
-#errorBox #errorBoxTxt {
+#errorBox .errorBoxTxt, #errorBox2 .errorBoxTxt {
 	font-family: verdana;
 	font-size: 12pt;
 	color: #000000;
@@ -267,13 +272,18 @@ input[type=button]:hover {
 	display: table-cell;
 	vertical-align: middle;
 }
-#errorBox .errorBoxTxtCont {
+#errorBox .errorBoxTxtCont, #errorBox2 .errorBoxTxtCont {
 	width: 300px;
 	height: 60px;
 	display: table;
 }
-#errorBox #errorBoxCloseBtn {
+#errorBox #errorBoxCloseBtn, #errorBox #errorBox2CloseBtn {
 	position: absolute;
 	bottom: 15px;
 	left: 83px;
+}
+#bmGameBoard {
+	display: none;
+	margin: 0 auto;
+	text-align: center;
 }

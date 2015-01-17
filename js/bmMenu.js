@@ -1,9 +1,13 @@
+var bmsocket;
 var bmMenuJS = function() {
 	var bmrooms = {};
 	var isServerDown = true;
-	var bmsocket = new io.connect('http://127.0.0.1:8080');
+	//var bmsocket = new io.connect('http://127.0.0.1:8080');
 	var lastSelectedGameID = "";
 	var lastSelectedIndex = 0;
+
+	bmsocket = new io.connect('http://127.0.0.1:8080');
+
 
 	function isValidName(name) {
 		return name.match(/^[A-Za-z]{1}[A-Za-z0-9_\-~+=!@#$%^&*\(\)\[\]]{1,14}$/);
@@ -12,9 +16,9 @@ var bmMenuJS = function() {
 		return name.match(/^[A-Za-z]{1}[A-Za-z0-9\\/_\-! @#$'"%^\.&~=*\[\]\(\)+]{5,49}$/);
 		//'
 	}
-	function displayError(errorObj) {
+	function displayError(code, isMenu) {
 		var txt = "";
-		switch (errorObj.c) {
+		switch (code) {
 			case "pnt":
 				txt = "Player name is taken.";
 				break;
@@ -49,8 +53,9 @@ var bmMenuJS = function() {
 				txt = "The specified game room name is taken.";
 				break;
 		}
-		$("#errorBoxTxt").text(txt);
-		$("#errorBox").fadeIn("fast");
+		var target = (isMenu ? $("#errorBox") : $("#errorBox2"));
+		target.find("span").text(txt);
+		target.fadeIn("fast");
 	}
 	function showJoinPanel(isAlreadyOpen) {
 		lastSelectedIndex = $(".servers .selectedRoom").index();
@@ -108,6 +113,11 @@ var bmMenuJS = function() {
 		updatePlayerList(roomIndex);
 		lastSelectedIndex = roomIndex;
 		lastSelectedGameID = bmrooms[roomIndex].gameID;
+		if ($("#buttonBar").hasClass("bmJoinOpen")) {
+			$(".spriteCont .selected").removeClass("selected");
+			$(".spriteCont .notAvailable").hide();
+			updateSpriteAvailability(roomIndex);
+		};
 	});
 	$("#refreshBtn").click(function(e) {
 		if (!isServerDown) {
@@ -154,24 +164,25 @@ var bmMenuJS = function() {
 			var playerName = $("#playerNameTxt").val();
 			var color = $(".spriteCont .selected").data("color");
 			if (roomTitle.length == 0) {
-				displayError({ c: "egrm" });
+				displayError("egrm", true);
 			} else {
 				if (isValidGameRoomName(roomTitle)) {
 					if (playerName.length == 0) {
-						displayError({ c: "epn" });
+						displayError("epn", true);
 					} else {
 						if (isValidName(playerName)) {
 							if ($(".spriteCont .selected").length == 1) {
+								gameInfo.me = color;
 								bmsocket.emit('createRoom', { rt: roomTitle.trim().replace(/ +/g, " "), n: playerName, c: color });						
 							} else {
-								displayError({ c: "pac" });
+								displayError("pac", true);
 							}
 						} else {
-							displayError({ c: "ipn" });
+							displayError("ipn", true);
 						}
 					}
 				} else {
-					displayError({ c: "igrn" });
+					displayError("igrn", true);
 				}
 			}
 		}
@@ -184,16 +195,17 @@ var bmMenuJS = function() {
 			var color = $(".spriteCont .selected").data("color");
 			var gameID = bmrooms[lastSelectedIndex].gameID;
 			if (playerName.length == 0) {
-				displayError({ c: "epn" });
+				displayError("epn", true);
 			} else {
 				if (isValidName(playerName)) {
 					if ($(".spriteCont .selected").length == 1) {
+						gameInfo.me = color;
 						bmsocket.emit('joinRoom', { n: playerName, c: color, gameID: gameID });
 					} else {
-						displayError({ c: "pac" });
+						displayError("pac", true);
 					}
 				} else {
-					displayError({ c: "ipn" });
+					displayError("ipn", true);
 				}
 			}
 		}
@@ -203,6 +215,12 @@ var bmMenuJS = function() {
 		$(e.currentTarget).animate({ opacity: 1 }, 200);
 		$("#errorBox").fadeOut("fast");
 	});
+	$("#errorBox2CloseBtn").click(function(e) {
+		$(e.currentTarget).css("opacity", 0.45);
+		$(e.currentTarget).animate({ opacity: 1 }, 200);
+		$("#errorBox2").fadeOut("fast");
+	});
+
 	function updateRoomList() {
 		$(".servers").empty();
 		$(".playerList").empty();
@@ -250,7 +268,7 @@ var bmMenuJS = function() {
 	bmsocket.on('connect_error', function(error) {
 		bmsocket.destroy();
 		isServerDown = true;
-		displayError({ c: "sid" });
+		displayError("sid", true);
 	});
 
 	// Query Room Lists.
@@ -271,21 +289,29 @@ var bmMenuJS = function() {
 	// Successfully created Room - Switch to game view.
 	bmsocket.on('createRoom', function(resp) {
 		console.log(resp);
+		$("#container").fadeOut(400, function() { $("body").css("background-color", "#000000"); $("#bmGameBoard").fadeIn(); });
+		console.log(gameInfo);
+
 	});
 	// Successfully joined Room - switch to game view.
 	bmsocket.on('joinRoom', function(resp) {
-		console.log(resp);
+		console.log("joinroom", resp);
+		for (var p in resp) {
+			gameInfo.players[resp[p].color] = resp[p];
+		}
+		$("#container").fadeOut(400, function() { $("body").css("background-color", "#000000"); $("#bmGameBoard").fadeIn(); });
+		//console.log(gameInfo.players);
 	});
 
 	// ******* ERROR HANDLING **************
 
 	// If create room fails.
 	bmsocket.on('createRoom_error', function(resp) {
-		displayError(resp);
+		displayError(resp.c, true);
 	});
 	// If joining room fails.
 	bmsocket.on('joinRoom_error', function(resp) {
-		displayError(resp);
+		displayError(resp.c, true);
 	});
 	// If query fails.
 	bmsocket.on('query_error', function(error) {
@@ -304,7 +330,13 @@ var bmMenuJS = function() {
 		//console.log('The client has disconnected!');
 		bmsocket.destroy();
 		isServerDown = true;
-		displayError({ c: "sid" });
+		if (gameInfo.playing) {
+			displayError("sid", false);
+			gameInfo.playing = false;
+		} else {
+			displayError("sid", true);
+		}
+		
 	});
 
 	function sendToServer(type, data) {

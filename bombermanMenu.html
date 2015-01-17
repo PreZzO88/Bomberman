@@ -5,7 +5,9 @@
 		<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
 		<script src="https://cdn.socket.io/socket.io-1.2.1.js"></script>
 		<script src="js/bmMenu.js"></script>
-		<link rel="stylesheet" type="text/css" href="css/gamemenu.css"></link>
+		<script src="js/bmGame.js"></script>
+		<script src="howlerjs/howler.min.js"></script>
+		<link rel="stylesheet" type="text/css" href="css/gamemenu.css">
 	</HEAD>
 	<BODY>
 		<div id="container">
@@ -43,17 +45,32 @@
 			</div>
 			<div id="errorBox">
 				<div class="errorBoxTxtCont">
-					<span id="errorBoxTxt"></span>
+					<span class="errorBoxTxt"></span>
 				</div>
 				<br />
 				<input type="button" id="errorBoxCloseBtn" value="Close" />
 			</div>
 		</div>
-	</div>
-	<script>
-		$(document).ready(function() {
-			bmMenuJS();
-		});
-	</script>
+		<div id="bmGameBoard">
+			<div style="margin: 0px auto; text-align: center;display:inline-block; position: relative;">
+				<canvas id="canvas" width="800" height="600" style="border-radius: 5px;"></canvas>
+				<img id="bmcache" style="display: none;" src="imgs/bmcache.png" />
+				<input type="text" id="bmName" maxlength="15" style="position: absolute; display: none; width: 144px; right: 31px; top: 203px;"/>
+				<input type="button" id="bmNameBtn" value="Enter" style="position: absolute; display: none; width: 84px; right: 63px; top: 239px;"/>
+				<div id="errorBox2">
+					<div class="errorBoxTxtCont">
+						<span class="errorBoxTxt"></span>
+					</div>
+					<br />
+					<input type="button" id="errorBox2CloseBtn" value="Close" />
+				</div>
+			</div>
+		</div>
+		<script>
+			$(document).ready(function() {
+				bmMenuJS();
+				bmGame();
+			});
+		</script>
 	</BODY>
 </HTML>
