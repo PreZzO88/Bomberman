@@ -198,11 +198,6 @@ var bmGame = function () {
 		}
 		var collisionPair1 = isCollision(pair1);
 		var collisionPair2 = isCollision(pair2);
-		if (player.isDead) {
-			player.score--;
-			showScores();
-			bmsocket.emit('playerDied');
-		}
 		if (collisionPair1 || collisionPair2) {
 			var collision = { };
 			if (collisionPair1 == collisionPair2 || player.isDead) {
@@ -270,18 +265,36 @@ var bmGame = function () {
 		if (item == "a") {
 			var lastBomb = player.lastLay;
 			var centerRow = Math.floor((player.c.y - gameInfo.boardy) / 30) + 1;
-			var centerCol = Math.floor((player.c.x - gameInfo.boardx) / 30) + 1;
+			var centerCol = Math.floor((player.c.x - gameInfo.boardx) / 30) + 1;	
 			if (lastBomb.r == centerRow && lastBomb.c == centerCol) {
 				return false;
-			} else {
-				player.lastLay = {};
+			} else if (lastBomb.r == row && lastBomb.c == col) {
+				return false;
 			}
 		} else if (item == "f" || item == "g" || item == "h") {
-			//player.isDead = true;
-			//return true;
 			return false;
 		} else if (item.match(/m|p|s|i|a/) != null) {
 			return false;
+		} else if (Object.keys(player.lastLay).length > 0) {
+			// if we are here, it's because we dont have bomb in player's space but a bomb has been laid
+			// by current player somewhere around this empty space. Check all player boundaries, and if 
+			// completely out of bomb to prevent player being locked in his own bomb.
+			var bounds = calculatePlayerBoundaries(player.x,player.y,player.w,player.h,player.speed * dt);
+			var outOfOwnBombBounds = true;
+			var lastBomb = player.lastLay;
+			for (var b in bounds) {
+				var centerRow = Math.floor((bounds[b].y - gameInfo.boardy) / 30) + 1;
+				var centerCol = Math.floor((bounds[b].x - gameInfo.boardx) / 30) + 1;	
+				if (lastBomb.r == centerRow && lastBomb.c == centerCol) {
+					// still in same space containing player's own bomb, break out.
+					outOfOwnBombBounds = false;
+					break;
+				}
+			}
+			if (outOfOwnBombBounds) {
+				player.lastLay = {};
+				console.log("completely out of own bomb bounds");
+			}
 		}
 		return (item != "e");
 	}
@@ -656,6 +669,8 @@ var bmGame = function () {
 		loadSpawnPoints();
 		loadSounds();
 		
+		drawChat();
+
 		// Board
 		redrawBoard();
 	}
@@ -734,7 +749,9 @@ var bmGame = function () {
 			ctx.fillText('Ping: ' + ping, 719, y + 39);
 		}
 	}
-
+	function drawChat() {
+		drawBox(21,490, gameInfo.boardw - 2, 100);
+	}
 	// Show user's inventory.
 	function showInventory() {
 		ctx.fillStyle = gameInfo.bgcolor;
@@ -798,91 +815,105 @@ var bmGame = function () {
 
 	$(document).keyup(function(e) {
 		//console.log(e.keyCode);
-		if (gameInfo.playing) {
-			if (e.keyCode >= 37 && e.keyCode <= 40) {
-				var letter;
-				switch (e.keyCode) {
-					case 38:
-						pressedKeys.u = false;
-						letter = "u";
-						break;
-					case 39:
-						pressedKeys.r = false;
-						letter = "r";
-						break;
-					case 40:
-						pressedKeys.d = false;
-						letter = "d";
-						break;
-					case 37:
-						pressedKeys.l = false;
-						letter = "l";
-						break;
-				}
-				var player = gameInfo.players[gameInfo.me];
-				if (!pressedKeys.u && !pressedKeys.r && !pressedKeys.d && !pressedKeys.l) {
-					player.isStopping = 1;
-					//sendStopMoving(player.x, player.y, player.dir);
-				} else {
-					var newDir;
-					for (realDir in pressedKeys) {
-						if (pressedKeys[realDir]) { newDir = realDir; break; }
+		if (!$("#chatTxt").is(":focus")) {
+			if (gameInfo.playing) {
+				if (e.keyCode >= 37 && e.keyCode <= 40) {
+					var letter;
+					switch (e.keyCode) {
+						case 38:
+							pressedKeys.u = false;
+							letter = "u";
+							break;
+						case 39:
+							pressedKeys.r = false;
+							letter = "r";
+							break;
+						case 40:
+							pressedKeys.d = false;
+							letter = "d";
+							break;
+						case 37:
+							pressedKeys.l = false;
+							letter = "l";
+							break;
 					}
-					player.changingDir = (player.dir != newDir ? 1 : 0);
-					player.altDir = 0;
-					player.dir = newDir;
-					sendChangeDir(player.x, player.y, newDir, 0);
-					if (player.isStopped) {
-						sendStopMoving(player.x, player.y, newDir);
+					var player = gameInfo.players[gameInfo.me];
+					if (!pressedKeys.u && !pressedKeys.r && !pressedKeys.d && !pressedKeys.l) {
+						player.isStopping = 1;
+						//sendStopMoving(player.x, player.y, player.dir);
+					} else {
+						var newDir;
+						for (realDir in pressedKeys) {
+							if (pressedKeys[realDir]) { newDir = realDir; break; }
+						}
+						player.changingDir = (player.dir != newDir ? 1 : 0);
+						player.altDir = 0;
+						player.dir = newDir;
+						sendChangeDir(player.x, player.y, newDir, 0);
+						if (player.isStopped) {
+							sendStopMoving(player.x, player.y, newDir);
+						}
 					}
 				}
 			}
 		}
 	});
 	$(document).keydown(function(e) {
-		if (gameInfo.playing) {
-			var player = gameInfo.players[gameInfo.me];
-			if (e.keyCode == 32) {
+		if ($("#chatTxt").is(":focus")) {
+			if (e.keyCode == 13) {
 				e.preventDefault();
-				if (!player.isDead) {
-					layBomb();
+				if ($("#chatTxt").val().length > 0) {
+					$("#chat > .convo").append('<div><span class="name">' + gameInfo.players[gameInfo.me].name + ':&nbsp;</span><span class="msg">' +  $("#chatTxt").val() + '</span></div>')
+					bmsocket.emit('chatmsg', $("#chatTxt").val());
+					$("#chatTxt").val("");
+					$("#chat > .convo").scrollTop($("#chat > .convo")[0].scrollHeight);
 				}
 			}
-			else if (e.keyCode == 13) {
-				e.preventDefault();
-				if (player.isDead) {
-					bmsocket.emit('spawnReq');
+		} else {
+			if (gameInfo.playing) {
+				var player = gameInfo.players[gameInfo.me];
+				if (e.keyCode == 32) {
+					e.preventDefault();
+					if (!player.isDead) {
+						layBomb();
+					}
 				}
-			}
-			else if (e.keyCode >= 37 && e.keyCode <= 40) {
-				e.preventDefault();
-				if (!player.isDead) {
-					var letter;
-					switch (e.keyCode) {
-						case 37:
-							letter = "l";
-							break;
-						case 38:
-							letter = "u";
-							break;
-						case 39:
-							letter = "r";
-							break;
-						case 40:
-							letter = "d";
-							break;
+				else if (e.keyCode == 13) {
+					e.preventDefault();
+					if (player.isDead) {
+						bmsocket.emit('spawnReq');
 					}
-					pressedKeys[letter] = true;
-					if (player.dir != letter || player.isStopped) {
-						player.changingDir = (player.dir != letter ? 1 : 0);
-						player.isStopped = 0;
-						player.dir = letter;
-						player.altDir = 0;
+				}
+				else if (e.keyCode >= 37 && e.keyCode <= 40) {
+					e.preventDefault();
+					if (!player.isDead) {
+						var letter;
+						switch (e.keyCode) {
+							case 37:
+								letter = "l";
+								break;
+							case 38:
+								letter = "u";
+								break;
+							case 39:
+								letter = "r";
+								break;
+							case 40:
+								letter = "d";
+								break;
+						}
+						pressedKeys[letter] = true;
+						if (player.dir != letter || player.isStopped) {
+							player.changingDir = (player.dir != letter ? 1 : 0);
+							player.isStopped = 0;
+							player.dir = letter;
+							player.altDir = 0;
+						}
+						//38=up
+						//39=right
+						//40=down
+						//37=left
 					}
-					//38=up
-					//39=right
-					//40=down
-					//37=left
 				}
 			}
 		}
@@ -911,7 +942,8 @@ var bmGame = function () {
 			gameInfo.players[data.c] = {
 				name: data.n, x: 0, y: 0, ping: 0, isDis: false, isDead: true, color: data.c, dir: "d", altDir: 0, isStopped: 1, speed: 30, expStr: 1, score: 0, armor: 10
 			};
-			console.log(gameInfo.players[data.c].armor);
+			$("#chat > .convo").append('<div><span class="msg">*** ' + data.n + ' has joined.</span></div>')
+			$("#chat > .convo").scrollTop($("#chat > .convo")[0].scrollHeight);
 		}
 		showScores();
 		//console.log(gameInfo.players);
@@ -957,6 +989,7 @@ var bmGame = function () {
 		showInventory();
 	});
 	bmsocket.on('playerDied', function(data) {
+		console.log(data);
 		var p = gameInfo.players[data.c];
 		var cb = gameInfo.players[data.cb];
 		if (data.c == data.cb) {
@@ -996,8 +1029,15 @@ var bmGame = function () {
 		console.log(color);
 		gameInfo.players[color].isDead = true;
 		gameInfo.players[color].isDis = true;
+		$("#chat > .convo").append('<div><span class="msg">*** ' + gameInfo.players[color].name + ' has left.</span></div>')
+		$("#chat > .convo").scrollTop($("#chat > .convo")[0].scrollHeight);
 		delete gameInfo.players[color];
 		showScores();
+	});
+	bmsocket.on('chatmsg', function(data) {
+		console.log(data);
+		$("#chat > .convo").append('<div><span class="name">' + gameInfo.players[data.c].name + ':&nbsp;</span><span class="msg">' +  data.msg + '</span></div>')
+		$("#chat > .convo").scrollTop($("#chat > .convo")[0].scrollHeight);
 	});
 	bmsocket.on('gameBoard', function(data) {
 		gameInfo.board = data.map(function(cols) { return cols.split(""); });
