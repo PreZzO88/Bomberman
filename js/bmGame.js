@@ -5,15 +5,15 @@ var bmGame = function () {
 	// Sounds are not mine, they are owned by http://www.freesfx.co.uk.
 
 	var ctx = $("#canvas")[0].getContext("2d");
-	var fpsctr = 0;
-	var ts = new Date().getTime();
-	var its = new Date().getTime();
-	var fps = 0;
-	var dt = 0;
-	var fpsTS = 0;
-	var dtTS = 0;
-	var tabWasInactive = false;
-	var pressedKeys = { u: false, d: false, l: false, r: false };
+	var fpsctr;
+	var ts;
+	var its;
+	var fps;
+	var dt;
+	var fpsTS;
+	var dtTS;
+	var tabWasInactive;
+	var pressedKeys;
 	gameInfo = {
 		bgcolor: "#4D7195",
 		boardcolor: "#0075B9",
@@ -24,11 +24,13 @@ var bmGame = function () {
 		boardh: 451,
 		assist: 4,
 		me: "",
+		mute: false,
 		bmcache: $("#bmcache")[0],
 		alternateAnimationSpeed: 200,
 		itemAnimationRate: 400,
 		itemClearAnimationRate: 600,
 		players: { },
+		speedInc: 10,
 		entityBitmap: {},
 		spawnPoints: [],
 		colors: [ "pink", "cyan", "red", "yellow", "blue", "lime", "gold", "green" ],
@@ -42,10 +44,10 @@ var bmGame = function () {
 	// Temporary - FPS counter
 	function showFPS() {
 		ctx.fillStyle = gameInfo.bgcolor;
-		ctx.fillRect(10,1,60,11);
+		ctx.fillRect(5,4,60,11);
 		ctx.font = "10pt verdana";
 		ctx.fillStyle = "#FFFFFF";
-		ctx.fillText(fps + " FPS", 10, 10);
+		ctx.fillText(fps + " FPS", 7, 14);
 		//console.log(fps);
 		//fpsctr = 0;
 	}
@@ -159,7 +161,9 @@ var bmGame = function () {
 		checkExplosions();
 		fpsctr++;
 		tabWasInactive = false;
-		window.requestAnimationFrame(mainRender);
+		if (gameInfo.playing) {
+			window.requestAnimationFrame(mainRender);
+		}
 	}
 
 	// Check for potential collisions for specified player.
@@ -293,7 +297,7 @@ var bmGame = function () {
 			}
 			if (outOfOwnBombBounds) {
 				player.lastLay = {};
-				console.log("completely out of own bomb bounds");
+				//console.log("completely out of own bomb bounds");
 			}
 		}
 		return (item != "e");
@@ -370,11 +374,13 @@ var bmGame = function () {
 			ae = gameInfo.activeExplosions[n];
 			ae.ts -= dt;
 			if (ae.ts <= 0) {
-				//i2s = items to show
+				// if there are (i2s = items to show), show it.
 				if (typeof ae.i2s !== "undefined") {
 					gameInfo.board[ae.row][ae.col] = ae.i2s;
 				} else {
-					gameInfo.board[ae.row][ae.col] = "e";
+					if (gameInfo.board[ae.row][ae.col] != "a") {
+						gameInfo.board[ae.row][ae.col] = "e";
+					}
 				}
 				gameInfo.activeExplosions.splice(n,1);
 			}
@@ -416,6 +422,7 @@ var bmGame = function () {
 			newRow = (isHorizontal ? row : (dir =="u" ? newRow - 1 : newRow + 1));
 			newCol = (isHorizontal ? (dir =="r" ? newCol + 1 : newCol - 1) : col );
 			var item = gameInfo.board[newRow][newCol];
+			//console.log(item);
 			if (item == "w" || item == "o") {
 				break;
 			} else if (item == "b") {
@@ -423,9 +430,15 @@ var bmGame = function () {
 					addNewExplosion(newRow, newCol, typeOfFire, false, owner);
 					break;
 				} else {
+					//console.log("has items");
 					if (items.r == newRow && items.c == newCol) {
 						addNewExplosion(newRow, newCol, typeOfFire, items.i, owner);
+						//console.log("brick encountered at " + newRow + " col: " + newCol + " items: " + items.i);
 					}
+					else {
+						addNewExplosion(newRow, newCol, typeOfFire, false, owner);
+					}
+					//console.log("shouldnt be here " + newRow + " col: " + newCol + " items: " + items.i);
 					break;
 				}
 			} else if (item == "a") {
@@ -452,6 +465,7 @@ var bmGame = function () {
 		if (itemsToShow !== false) { 
 			aeObj.i2s = itemsToShow;
 		}
+		//console.log("row: " + row + ", col: " + col + ", o: " + owner.color);
 		gameInfo.activeExplosions.push(aeObj);
 	}
 
@@ -511,14 +525,20 @@ var bmGame = function () {
 		if (player.armor == 0) {
 			ctx.drawImage(bmcache, gameInfo.entityBitmap[color][direction + alt].x, gameInfo.entityBitmap[color][direction + alt].y, w, h, x, y, w, h);
 		} else if (player.armor > 0) {
-			if (player.armor % 1 >= 0.3) {
+			if (player.armor % 1 >= 0.1) {
 				if (isMe) { showInventory(); }
 				ctx.drawImage(bmcache, gameInfo.entityBitmap[color][direction + alt].x, gameInfo.entityBitmap[color][direction + alt].y, w, h, x, y, w, h);
 			}
+			if (isMe) {
+				if (player.armor <= 3 && player.armor % 1 >= 0.9) {
+					//console.log(player.armor % 1);
+					playSound("armorrunout");
+				}
+			}
 			player.armor -= dt;
 		} else {
-			if (isMe) { showInventory(); }
 			player.armor = 0;
+			if (isMe) { showInventory(); }
 			ctx.drawImage(bmcache, gameInfo.entityBitmap[color][direction + alt].x, gameInfo.entityBitmap[color][direction + alt].y, w, h, x, y, w, h);
 		}
 	}
@@ -560,28 +580,6 @@ var bmGame = function () {
 		gameInfo.spawnPoints[7] = { x: 21, y: 234 };
 	}
 
-	// Board tiles 2D Array.
-	function loadBoardTiles() {
-		gameInfo.board[0] = "ooooooooooooooooooooo";
-		gameInfo.board[1] = "oeebbbbbbeeebbbbbbeeo";
-		gameInfo.board[2] = "oewbwbwbwbwbwbwbwbweo";
-		gameInfo.board[3] = "obbbbbbbbbbbbbbbbbbbo";
-		gameInfo.board[4] = "obwbwbwbwbwbwbwbwbwbo";
-		gameInfo.board[5] = "obbbbbbbbbbbbbbbbbbbo";
-		gameInfo.board[6] = "obwbwbwbwbwbwbwbwbwbo";
-		gameInfo.board[7] = "oebbbbbbbbbbbbbbbbbeo";
-		gameInfo.board[8] = "oewbwbwbwbwbwbwbwbweo";
-		gameInfo.board[9] = "oebbbbbbbbbbbbbbbbbeo";
-		gameInfo.board[10] = "obwbwbwbwbwbwbwbwbwbo";
-		gameInfo.board[11] = "obbbbbbbbbbbbbbbbbbbo";
-		gameInfo.board[12] = "obwbwbwbwbwbwbwbwbwbo";
-		gameInfo.board[13] = "obbbbbbbbbbbbbbbbbbbo";
-		gameInfo.board[14] = "oewbwbwbwbwbwbwbwbweo";
-		gameInfo.board[15] = "oeebbbbbbeeebbbbbbeeo";
-		gameInfo.board[16] = "ooooooooooooooooooooo";
-		gameInfo.board = gameInfo.board.map(function(cols) { return cols.split(""); });
-	}
-
 	// Mapper for entities
 	function loadEntityBitmap() {
 		gameInfo.entityBitmap["w"] = { x: 0, y: 30, w: 31, h: 31 };
@@ -598,7 +596,6 @@ var bmGame = function () {
 		gameInfo.entityBitmap["f"] = { x: 0, y: 177, w: 30, h: 30 };
 		gameInfo.entityBitmap["g"] = { x: 88, y: 240, w: 30, h: 30 };
 		gameInfo.entityBitmap["h"] = { x: 0, y: 208, w: 30, h: 30 };
-		
 		var y = 0;
 		for (color in gameInfo.colors) {
 			gameInfo.entityBitmap[gameInfo.colors[color]] = {
@@ -652,12 +649,22 @@ var bmGame = function () {
 			"fuse" : new Howl({ urls: ['snds/fuse.mp3'], autoplay: false }),
 			"flame" : new Howl({ urls: ['snds/flame.mp3'], autoplay: false }),
 			"explode" : new Howl({ urls: ['snds/explode.mp3'], autoplay: false }),
-			"gameover" : new Howl({ urls: ['snds/gameover.mp3'], autoplay: false })
+			"gameover" : new Howl({ urls: ['snds/gameover.mp3'], autoplay: false }),
+			"armor" : new Howl({ urls: ['snds/armor.mp3'], autoplay: false }),
+			"bomb" : new Howl({ urls: ['snds/bomb.mp3'], autoplay: false }),
+			"firepower" : new Howl({ urls: ['snds/firepower.mp3'], autoplay: false }),
+			"spawn" : new Howl({ urls: ['snds/spawn.mp3'], autoplay: false }),
+			"death" : new Howl({ urls: ['snds/death.mp3'], autoplay: false }),
+			"speed" : new Howl({ urls: ['snds/speed.mp3'], autoplay: false }),
+			"armorrunout" : new Howl({ urls: ['snds/wearoff.mp3'], autoplay: false })
 		};
 	}
 
 	// Initial Loading.
 	function prepare() {
+
+		initVars();
+
 		ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 		// Main Window
 		ctx.fillStyle = gameInfo.bgcolor;
@@ -665,35 +672,78 @@ var bmGame = function () {
 		
 		// Initialize game info.
 		loadEntityBitmap();				
-		loadBoardTiles();
 		loadSpawnPoints();
 		loadSounds();
-		
+
 		drawChat();
 
 		// Board
 		redrawBoard();
 	}
+
 	function playSound(snd) {
-		if (!tabWasInactive) {
-			switch (snd) {
-				case "bomb":
-					gameInfo.sounds["fuse"].play();
-					break;
-				case "fire":
-					gameInfo.sounds["flame"].play();
-					break;
-				case "explode":
-					gameInfo.sounds["explode"].play();
-					break;
-				case "gameover":
-					gameInfo.sounds["gameover"].play();
-					break;
-				default:
-					break;
+		if (!gameInfo.mute) {
+			if (!tabWasInactive) {
+				switch (snd) {
+					case "bomb":
+						gameInfo.sounds["fuse"].play();
+						break;
+					case "fire":
+						gameInfo.sounds["flame"].play();
+						break;
+					case "explode":
+						gameInfo.sounds["explode"].play();
+						break;
+					case "gameover":
+						gameInfo.sounds["gameover"].play();
+						break;
+					case "armor":
+						gameInfo.sounds["armor"].play();
+						break;
+					case "ebomb":
+						gameInfo.sounds["bomb"].play();
+						break;
+					case "firepower":
+						gameInfo.sounds["firepower"].play();
+						break;
+					case "spawn":
+						gameInfo.sounds["spawn"].play();
+						break;
+					case "death":
+						gameInfo.sounds["death"].play();
+						break;
+					case "speed":
+						gameInfo.sounds["speed"].play();
+						break;
+					case "armorrunout":
+						gameInfo.sounds["armorrunout"].play();
+						break;
+					default:
+						break;
+				}
 			}
 		}
 	}
+
+	function gameOver() {
+		playSound("gameover");
+		gameInfo.playing = false;
+		var timeLeft = $("#gameOverPopup span.newGameTimer");
+		timeLeft.text("5");
+		$("#gameOverPopup").show();
+		var n = 5;
+		var goTimer = function () {
+			timeLeft.text(n);
+			n--;
+			if (n >= 0) {
+				setTimeout( function() { goTimer(n); }, 1000);
+			} else {
+				$("#gameOverPopup").hide();
+			}
+		};
+		goTimer();
+	}
+
 	// Get gameID from URL - Not currently in use.
 	function getGameID() {
 		var params = window.location.search.substring(1).split("&");
@@ -765,12 +815,12 @@ var bmGame = function () {
 		ctx.font = "10pt verdana";
 		ctx.fillStyle = "#000000";
 		ctx.fillText("x " + p.noba, 658, 516);
-		ctx.fillText("x " + (Math.floor(p.speed / 15) - 2), 658, 547);
+		ctx.fillText("x " + (Math.floor(p.speed / gameInfo.speedInc) - 2), 658, 547);
 		ctx.fillText("x " + (p.expStr - 1), 732, 516);
 		ctx.fillText("x " + Math.ceil(p.armor / 10), 732, 547);
 		ctx.fillStyle = "#FFFFFF";
 		ctx.fillText("x " + p.noba, 657, 515);
-		ctx.fillText("x " + (Math.floor(p.speed / 15) - 2), 657, 546);
+		ctx.fillText("x " + (Math.floor(p.speed / gameInfo.speedInc) - 2), 657, 546);
 		ctx.fillText("x " + (p.expStr - 1), 731, 515);
 		ctx.fillText("x " + Math.ceil(p.armor / 10), 731, 546);
 	}
@@ -812,7 +862,38 @@ var bmGame = function () {
 
 
 	// ***** LISTENERS - KEYS
-
+	$(window).blur(function(e) {
+		if (gameInfo.playing) {
+			var player = gameInfo.players[gameInfo.me];
+			pressedKeys = { u: false, d: false, l: false, r: false };
+			player.isStopping = 0;
+			player.isStopped = 1;
+			sendStopMoving(player.x, player.y, player.dir);
+		}
+	});
+	$(".soundIcon").click(function(e) {
+		var ct = $(e.currentTarget);
+		if (ct.hasClass("soundOn")) {
+			ct.removeClass("soundOn");
+			ct.addClass("soundOff");
+			ct.attr("title", "Play Sound");
+			gameInfo.mute = true;
+		} else {
+			ct.removeClass("soundOff");
+			ct.addClass("soundOn");
+			ct.attr("title", "Mute Sound");
+			gameInfo.mute = false;
+		}
+	});
+	$("#leaveGameBtn").click(function(e) {
+		bmsocket.emit('playerLeave');
+		gameInfo.playing = false;
+		$("#bmGameBoard").fadeOut(400, function() {
+			$("#chat > .convo").empty();
+			$("#chatTxt").val("");
+			$("body").css("background-color", "#4D7195"); $("#container").fadeIn();
+		});
+	});
 	$(document).keyup(function(e) {
 		//console.log(e.keyCode);
 		if (!$("#chatTxt").is(":focus")) {
@@ -921,12 +1002,25 @@ var bmGame = function () {
 
 	// *************** SOCKET ****************
 
+	function initVars() {
+		fpsctr = 0;
+		ts = new Date().getTime();
+		its = new Date().getTime();
+		fps = 0;
+		dt = 0;
+		fpsTS = 0;
+		dtTS = 0;
+		tabWasInactive = false;
+		pressedKeys = { u: false, d: false, l: false, r: false };
+	}
+
 	bmsocket.on('spawn', function(data) {
-		console.log(data);
+		//console.log(data);
 		for (var sp in data.spawn) {
 			var spInfo = data.spawn[sp];
 			spawnPlayer(spInfo.c, spInfo.pos);	
 		}
+		playSound("spawn");
 		showInventory();
 	});
 	
@@ -934,9 +1028,9 @@ var bmGame = function () {
 		//console.log(data);
 		if (data.c == gameInfo.me) {
 			gameInfo.players[gameInfo.me] =  { x: 0, y: 0, ping: 0, isDead: true, name: data.n, color: data.c, dir: "d", altDir: 0, c: 0, isStopping: 0, isStopped: 1, speed: 30, changingDir: 0, nobp: 0, noba: 1, expStr: 1, lastLay: {}, sentUpd2Srv: false, score: 0, armor: 10 };
-			//mainRender();
-			window.requestAnimationFrame(mainRender);
+			initVars();
 			gameInfo.playing = true;
+			window.requestAnimationFrame(mainRender);
 			showInventory();
 		} else {
 			gameInfo.players[data.c] = {
@@ -949,7 +1043,7 @@ var bmGame = function () {
 		//console.log(gameInfo.players);
 	});
 	bmsocket.on('layBomb', function(data) {
-		console.log(data);
+		//console.log(data);
 		playSound("bomb");
 		gameInfo.board[data.r][data.c] = "a";
 		gameInfo.activeBombs.push({ row: data.r, col: data.c, ts: 5 - (data.s / 1000), owner: gameInfo.players[data.o], expStr: data.expStr, items: data.i });
@@ -959,7 +1053,7 @@ var bmGame = function () {
 		}
 	});
 	bmsocket.on('changeDir', function(data) {
-		console.log(data);
+		//console.log(data);
 		var p = gameInfo.players[data.c];
 		p.x = data.d.x;
 		p.y = data.d.y;
@@ -972,15 +1066,19 @@ var bmGame = function () {
 		gameInfo.board[data.r][data.c] = "e";
 		switch (data.i) {
 			case "s":
-				p.speed+=15;
+				playSound("speed");
+				p.speed+=gameInfo.speedInc;
 				break;
 			case "m":
+				playSound("ebomb");
 				p.noba++;
 				break;
 			case "p":
+				playSound("firepower");
 				p.expStr++;
 				break;
 			case "i":
+				playSound("armor");
 				p.armor += 10;
 				break;
 			default:
@@ -989,7 +1087,7 @@ var bmGame = function () {
 		showInventory();
 	});
 	bmsocket.on('playerDied', function(data) {
-		console.log(data);
+		//console.log(data);
 		var p = gameInfo.players[data.c];
 		var cb = gameInfo.players[data.cb];
 		if (data.c == data.cb) {
@@ -998,18 +1096,19 @@ var bmGame = function () {
 			cb.score++;
 		}
 		p.isDead = true;
+		playSound("death");
 		showScores();
 	});
 	bmsocket.on('stopMoving', function(data) {
 		var p = gameInfo.players[data.c];
+		//console.log("stopMoving: " + data.d.x);
 		p.x = data.d.x;
 		p.y = data.d.y;
 		p.dir = data.d.dir;
 		p.isStopped = 1;
 	});
 	bmsocket.on('gameOver', function() {
-		console.log("Game over! New game starting in 5 seconds.");
-		gameInfo.playing = false;
+		gameOver();
 	});
 	bmsocket.on('newGame', function(newBoard) {
 		var players = gameInfo.players;
@@ -1022,11 +1121,12 @@ var bmGame = function () {
 			players[player].isStopped = 1;
 		}
 		gameInfo.playing = true;
+		window.requestAnimationFrame(mainRender);
 		showInventory();
 		gameInfo.board = newBoard.map(function(cols) { return cols.split(""); });
 	});
 	bmsocket.on('playerLeave', function(color) {
-		console.log(color);
+		//console.log(color);
 		gameInfo.players[color].isDead = true;
 		gameInfo.players[color].isDis = true;
 		$("#chat > .convo").append('<div><span class="msg">*** ' + gameInfo.players[color].name + ' has left.</span></div>')
@@ -1035,12 +1135,19 @@ var bmGame = function () {
 		showScores();
 	});
 	bmsocket.on('chatmsg', function(data) {
-		console.log(data);
+		//console.log(data);
 		$("#chat > .convo").append('<div><span class="name">' + gameInfo.players[data.c].name + ':&nbsp;</span><span class="msg">' +  data.msg + '</span></div>')
 		$("#chat > .convo").scrollTop($("#chat > .convo")[0].scrollHeight);
 	});
 	bmsocket.on('gameBoard', function(data) {
 		gameInfo.board = data.map(function(cols) { return cols.split(""); });
+	});
+	bmsocket.on('correct', function(data) {
+		//console.log(correct, data);
+		var player = gameInfo.players[gameInfo.me];
+		player.x = data.x;
+		player.y = data.y;
+		player.dir = data.dir;
 	});
 	bmsocket.on('abae', function(data) {
 		gameInfo.activeBombs = data.ab.map(function(bomb) { bomb.owner = gameInfo.players[bomb.owner]; return bomb; });
@@ -1059,6 +1166,7 @@ var bmGame = function () {
 			player.sentUpd2Srv = false;
 			//console.log("stopMoving", { x: x, y: y, dir: dir });
 			bmsocket.emit('stopMoving', { x: x, y: y, dir: dir });
+			//console.log('stopMoving', { x: x, y: y, dir: dir });
 		}
 	}
 	function sendChangeDir(x, y, dir, altDir) {

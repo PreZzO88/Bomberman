@@ -6,7 +6,8 @@ var bmMenuJS = function() {
 	var lastSelectedGameID = "";
 	var lastSelectedIndex = 0;
 
-	bmsocket = new io.connect('http://127.0.0.1:8080');
+	//bmsocket = new io.connect('http://127.0.0.1:5000');
+	bmsocket = new io.connect('http://protected-crag-2289.herokuapp.com');
 
 
 	function isValidName(name) {
@@ -254,10 +255,6 @@ var bmMenuJS = function() {
 			}
 		}	
 	}
-	// TEMP remove after
-	bmsocket.on('error',function(error) {
-		console.log(error);
-	});
 
 	// On page load, connect and query rooms list.
 	bmsocket.on('connect',function() {
@@ -288,14 +285,20 @@ var bmMenuJS = function() {
 	});
 	// Successfully created Room - Switch to game view.
 	bmsocket.on('createRoom', function(resp) {
-		console.log(resp);
+		//console.log(resp);
+		gameInfo.players = { };
+		gameInfo.activeBombs = [];
+		gameInfo.activeExplosions = [];
 		$("#container").fadeOut(400, function() { $("body").css("background-color", "#000000"); $("#bmGameBoard").fadeIn(); });
-		console.log(gameInfo);
+		//console.log(gameInfo);
 
 	});
 	// Successfully joined Room - switch to game view.
 	bmsocket.on('joinRoom', function(resp) {
-		console.log("joinroom", resp);
+		gameInfo.players = { };
+		gameInfo.activeBombs = [];
+		gameInfo.activeExplosions = [];
+		//console.log("joinroom", resp);
 		for (var p in resp) {
 			gameInfo.players[resp[p].color] = resp[p];
 		}
@@ -316,15 +319,11 @@ var bmMenuJS = function() {
 	// If query fails.
 	bmsocket.on('query_error', function(error) {
 		if (error.c == "igi") {
-			console.log("Error - Invalid Game ID");
+			displayError("igi", true);
 		} else if (error.c == "gif") {
 			alert("Game Is Full");
 		}
 	});				
-	// Add a connect listener - TEMP - remove when done
-	bmsocket.on('message',function(data) {
-		console.log('Received a message from the server!',data);
-	});
 	// If server loses connection, destroy all.
 	bmsocket.on('disconnect',function() {
 		//console.log('The client has disconnected!');

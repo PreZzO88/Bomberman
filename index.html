@@ -2,13 +2,13 @@
 <HTML>
 	<HEAD>
 		<TITLE>:: Bomberman - Welcome</TITLE>
+		<link rel="shortcut icon" href="favicon.ico" />
+		<link rel="stylesheet" type="text/css" href="css/gamemenu.css">
 		<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
 		<script src="socketio/socket.io.js"></script>
 		<script src="js/bmMenu.js"></script>
 		<script src="js/bmGame.js"></script>
 		<script src="howlerjs/howler.min.js"></script>
-		<link rel="shortcut icon" href="favicon.ico" />
-		<link rel="stylesheet" type="text/css" href="css/gamemenu.css">
 	</HEAD>
 	<BODY>
 		<div id="container">
@@ -64,6 +64,13 @@
 					</div>
 					<br />
 					<input type="button" id="errorBox2CloseBtn" value="Close" />
+				</div>
+				<div id="gameOverPopup">
+					<span>Game Over!<br /><br />New game starting in <span class="newGameTimer">5</span> seconds.</span>
+				</div>
+				<div id="bottomRightPanel">
+						<div class="soundIcon soundOn" title="Mute Sound"></div>
+						<div class="leaveGameCont"><input type="button" id="leaveGameBtn" value="Leave" /></div>
 				</div>
 				<div id="chat">
 					<div class="convo">

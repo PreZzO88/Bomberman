@@ -329,3 +329,57 @@ input[type=button]:hover {
 #chat .txtInput #chatTxt:focus {
 	outline-color: #00FFFF;
 }
+#gameOverPopup {
+	position: absolute;
+	top: 156px;
+	left: 233px;
+	width: 300px;
+	height: 69px;
+	display: inline-block;
+	border-radius: 5px;
+	border: 2px solid #363636;
+	background-color: rgba(230,230,230,0.92);
+	padding: 15px;
+	display: none;
+	text-align: center;
+}
+#gameOverPopup span {
+	font-family: verdana;
+	font-size: 12pt;
+	color: #000000;
+	text-shadow: -1px -1px #d3d3d3;
+}
+.soundIcon {
+	background-image: url('../imgs/bmcache.png');
+	background-repeat: no-repeat;
+	width: 28px;
+	cursor: pointer;
+	height: 28px;
+	display: inline-block;
+}
+.soundIcon:hover {
+	opacity: 0.75;
+}
+.soundIcon.soundOn {
+	background-position: -169px -240px;	
+}
+.soundIcon.soundOff {
+	background-position: -52px -240px;	
+}
+#bottomRightPanel {
+	position: absolute;
+	right: 19px;
+	bottom: 12px;
+	width: 170px;
+	height: 28px;
+	text-align: center;
+}
+#bottomRightPanel input {
+	height: 28px;
+	width: 74px;
+	margin: 0px 0px 0px 20px;
+}
+#bottomRightPanel .leaveGameCont {
+	display: inline-block;
+	vertical-align: top;
+}
