@@ -222,6 +222,17 @@ var bmMenuJS = function() {
 		$("#errorBox2").fadeOut("fast");
 	});
 
+	// Faster than using grep apparently.
+	function getRoomIndex(gameID) {
+		var roomNum = 0;
+		for (var n = 0; n < bmrooms.length; n++) {
+			if (bmrooms[n].gameID == gameID) {
+				roomNum = n;
+				break;
+			}
+		}
+		return roomNum;
+	}
 	function updateRoomList() {
 		$(".servers").empty();
 		$(".playerList").empty();
@@ -234,6 +245,7 @@ var bmMenuJS = function() {
 		for (var n = 0; n < bmrooms.length; n++) {
 			if (bmrooms[n].gameID == lastSelectedGameID) {
 				$(".servers div.server").eq(n).trigger("click");
+				break;
 			}
 		}
 		if ($(".servers .selectedRoom").length == 0) {
@@ -252,6 +264,8 @@ var bmMenuJS = function() {
 		for (var color in ac) {
 			if (!ac[color]) {
 				$('.bmsprites[data-color="' + color + '"]').find(".notAvailable").show();
+			} else {
+				$('.bmsprites[data-color="' + color + '"]').find(".notAvailable").hide();
 			}
 		}	
 	}
@@ -276,6 +290,32 @@ var bmMenuJS = function() {
 			updateSpriteAvailability(lastSelectedIndex);
 		}
 	});
+
+	// Update with new room in lobby.
+	bmsocket.on('lobbyUpd_newRoom', function(upd) {
+		var roomNum = bmrooms.push(upd);
+		$(".servers").append('<div class="server"><span class="serverNum">' + roomNum + '</span><span class="serverName">' + upd.roomName + '</span><span class="serverPlayers">' + upd.names.length + ' / 8</span></div>');
+		bmrooms[roomNum - 1].names = upd.names.sort(function(a,b) { return b.s - a.s; });
+	});
+
+	// Update room info when in lobby.
+	bmsocket.on('lobbyUpd_roomInfo', function(upd) {
+		var roomNum = getRoomIndex(upd.gameID);
+		$(".servers").find("div.server").eq(roomNum).find("span.serverPlayers").text(upd.names.length + " / 8");
+		bmrooms[roomNum].names = upd.names.sort(function(a,b) { return b.s - a.s; });
+		bmrooms[roomNum].ac = upd.ac;
+		if (lastSelectedIndex == roomNum) {
+			updatePlayerList(roomNum);
+			updateSpriteAvailability(roomNum);
+		}
+	});
+	// Update if room closed.
+	bmsocket.on('lobbyUpd_roomClosed', function(gameID) {
+		var n = getRoomIndex(gameID);
+		bmrooms.splice(n,1);
+		updateRoomList();
+	});
+
 	// Query only room when user clicks join (to update colors).
 	bmsocket.on('query_room', function(room) {
 		bmrooms[lastSelectedIndex] = room;
@@ -285,25 +325,28 @@ var bmMenuJS = function() {
 	});
 	// Successfully created Room - Switch to game view.
 	bmsocket.on('createRoom', function(resp) {
-		//console.log(resp);
 		gameInfo.players = { };
 		gameInfo.activeBombs = [];
 		gameInfo.activeExplosions = [];
-		$("#container").fadeOut(400, function() { $("body").css("background-color", "#000000"); $("#bmGameBoard").fadeIn(); });
-		//console.log(gameInfo);
-
+		$("#container").fadeOut(400, function() {
+			$("body").css("background-color", "#000000");
+			$("#bmGameBoard").fadeIn();
+			$("#chat > .convo").append('<div><span class="msg">*** You have connected. (Press -Spacebar- to lay bombs, -Enter- to respawn)</span></div>');
+		});
 	});
 	// Successfully joined Room - switch to game view.
 	bmsocket.on('joinRoom', function(resp) {
 		gameInfo.players = { };
 		gameInfo.activeBombs = [];
 		gameInfo.activeExplosions = [];
-		//console.log("joinroom", resp);
 		for (var p in resp) {
 			gameInfo.players[resp[p].color] = resp[p];
 		}
-		$("#container").fadeOut(400, function() { $("body").css("background-color", "#000000"); $("#bmGameBoard").fadeIn(); });
-		//console.log(gameInfo.players);
+		$("#container").fadeOut(400, function() {
+			$("body").css("background-color", "#000000");
+			$("#bmGameBoard").fadeIn();
+			$("#chat > .convo").append('<div><span class="msg">*** You have connected. (Press -Spacebar- to lay bombs, -Enter- to respawn)</span></div>');
+		});
 	});
 
 	// ******* ERROR HANDLING **************
@@ -316,6 +359,7 @@ var bmMenuJS = function() {
 	bmsocket.on('joinRoom_error', function(resp) {
 		displayError(resp.c, true);
 	});
+
 	// If query fails.
 	bmsocket.on('query_error', function(error) {
 		if (error.c == "igi") {

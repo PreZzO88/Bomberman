@@ -14,6 +14,9 @@ var bmGame = function () {
 	var dtTS;
 	var tabWasInactive;
 	var pressedKeys;
+	var volumeIsClicked = false;
+	var volumeSeeker = $("#bottomRightPanel .soundBar .sndseeker");
+	var volumeSeekerCaption = $("#bottomRightPanel .soundBar .sndseeker span");
 	gameInfo = {
 		bgcolor: "#4D7195",
 		boardcolor: "#0075B9",
@@ -24,7 +27,6 @@ var bmGame = function () {
 		boardh: 451,
 		assist: 4,
 		me: "",
-		mute: false,
 		bmcache: $("#bmcache")[0],
 		alternateAnimationSpeed: 200,
 		itemAnimationRate: 400,
@@ -44,8 +46,8 @@ var bmGame = function () {
 	// Temporary - FPS counter
 	function showFPS() {
 		ctx.fillStyle = gameInfo.bgcolor;
-		ctx.fillRect(5,4,60,11);
-		ctx.font = "10pt verdana";
+		ctx.fillRect(5,4,80,11);
+		ctx.font = "10pt verdana,kalimati";
 		ctx.fillStyle = "#FFFFFF";
 		ctx.fillText(fps + " FPS", 7, 14);
 		//console.log(fps);
@@ -515,6 +517,7 @@ var bmGame = function () {
 		var speed = Math.ceil(player.speed * dt);
 		var boundaries = calculatePlayerBoundaries(x, y, w, h, speed);
 		var isMe = player.color == gameInfo.me;
+		var dontDraw = false;
 		player.x = x;
 		player.y = y;
 		player.w = w;
@@ -522,14 +525,25 @@ var bmGame = function () {
 		for (bound in boundaries) {
 			player[bound] = boundaries[bound];
 		}
+		if (x <= gameInfo.boardx || y <= gameInfo.boardy || x+w >= gameInfo.boardx+gameInfo.boardw || y+h >= gameInfo.boardy+gameInfo.boardh) {
+			dontDraw = true;
+		}
+		// If armor is 0, just draw.
 		if (player.armor == 0) {
-			ctx.drawImage(bmcache, gameInfo.entityBitmap[color][direction + alt].x, gameInfo.entityBitmap[color][direction + alt].y, w, h, x, y, w, h);
-		} else if (player.armor > 0) {
-			if (player.armor % 1 >= 0.1) {
-				if (isMe) { showInventory(); }
+			if (!dontDraw) {
 				ctx.drawImage(bmcache, gameInfo.entityBitmap[color][direction + alt].x, gameInfo.entityBitmap[color][direction + alt].y, w, h, x, y, w, h);
 			}
+		} else if (player.armor > 0) {
+			// if armor is on.
+			// animate armor.
+			if (player.armor % 1 >= 0.1) {
+				if (isMe) { showInventory(); }
+				if (!dontDraw) {
+					ctx.drawImage(bmcache, gameInfo.entityBitmap[color][direction + alt].x, gameInfo.entityBitmap[color][direction + alt].y, w, h, x, y, w, h);
+				}
+			}
 			if (isMe) {
+				// When 3 seconds left, play sound.
 				if (player.armor <= 3 && player.armor % 1 >= 0.9) {
 					//console.log(player.armor % 1);
 					playSound("armorrunout");
@@ -537,9 +551,12 @@ var bmGame = function () {
 			}
 			player.armor -= dt;
 		} else {
+			// armor reached 0 or less, so set to 0.
 			player.armor = 0;
 			if (isMe) { showInventory(); }
-			ctx.drawImage(bmcache, gameInfo.entityBitmap[color][direction + alt].x, gameInfo.entityBitmap[color][direction + alt].y, w, h, x, y, w, h);
+			if (!dontDraw) {
+				ctx.drawImage(bmcache, gameInfo.entityBitmap[color][direction + alt].x, gameInfo.entityBitmap[color][direction + alt].y, w, h, x, y, w, h);
+			}
 		}
 	}
 
@@ -682,45 +699,43 @@ var bmGame = function () {
 	}
 
 	function playSound(snd) {
-		if (!gameInfo.mute) {
-			if (!tabWasInactive) {
-				switch (snd) {
-					case "bomb":
-						gameInfo.sounds["fuse"].play();
-						break;
-					case "fire":
-						gameInfo.sounds["flame"].play();
-						break;
-					case "explode":
-						gameInfo.sounds["explode"].play();
-						break;
-					case "gameover":
-						gameInfo.sounds["gameover"].play();
-						break;
-					case "armor":
-						gameInfo.sounds["armor"].play();
-						break;
-					case "ebomb":
-						gameInfo.sounds["bomb"].play();
-						break;
-					case "firepower":
-						gameInfo.sounds["firepower"].play();
-						break;
-					case "spawn":
-						gameInfo.sounds["spawn"].play();
-						break;
-					case "death":
-						gameInfo.sounds["death"].play();
-						break;
-					case "speed":
-						gameInfo.sounds["speed"].play();
-						break;
-					case "armorrunout":
-						gameInfo.sounds["armorrunout"].play();
-						break;
-					default:
-						break;
-				}
+		if (!tabWasInactive) {
+			switch (snd) {
+				case "bomb":
+					gameInfo.sounds["fuse"].play();
+					break;
+				case "fire":
+					gameInfo.sounds["flame"].play();
+					break;
+				case "explode":
+					gameInfo.sounds["explode"].play();
+					break;
+				case "gameover":
+					gameInfo.sounds["gameover"].play();
+					break;
+				case "armor":
+					gameInfo.sounds["armor"].play();
+					break;
+				case "ebomb":
+					gameInfo.sounds["bomb"].play();
+					break;
+				case "firepower":
+					gameInfo.sounds["firepower"].play();
+					break;
+				case "spawn":
+					gameInfo.sounds["spawn"].play();
+					break;
+				case "death":
+					gameInfo.sounds["death"].play();
+					break;
+				case "speed":
+					gameInfo.sounds["speed"].play();
+					break;
+				case "armorrunout":
+					gameInfo.sounds["armorrunout"].play();
+					break;
+				default:
+					break;
 			}
 		}
 	}
@@ -775,12 +790,13 @@ var bmGame = function () {
 			ctx.drawImage(bmcache, gameInfo.entityBitmap[color]["d0"].x, gameInfo.entityBitmap[color]["d0"].y, 29, 23, 616, y+14, 29, 23);
 
 			// Player Name
-			ctx.font = "10pt verdana";
+			ctx.font = "10pt verdana,kalimati";
 			var textWidth = ctx.measureText(name).width;
 			// Clip overflow (if any)
 			while (textWidth >= 126) {
 				name = name.substr(0,name.length - 1);
 				textWidth = ctx.measureText(name).width;
+
 			}
 			ctx.fillStyle = "#000000";
 			ctx.fillText(name, 650, y + 20);
@@ -812,7 +828,7 @@ var bmGame = function () {
 		drawItem("p", 698, 495);
 		drawItem("i", 698, 525);
 		var p = gameInfo.players[gameInfo.me];
-		ctx.font = "10pt verdana";
+		ctx.font = "10pt verdana,kalimati";
 		ctx.fillStyle = "#000000";
 		ctx.fillText("x " + p.noba, 658, 516);
 		ctx.fillText("x " + (Math.floor(p.speed / gameInfo.speedInc) - 2), 658, 547);
@@ -877,12 +893,12 @@ var bmGame = function () {
 			ct.removeClass("soundOn");
 			ct.addClass("soundOff");
 			ct.attr("title", "Play Sound");
-			gameInfo.mute = true;
+			Howler.mute();
 		} else {
 			ct.removeClass("soundOff");
 			ct.addClass("soundOn");
 			ct.attr("title", "Mute Sound");
-			gameInfo.mute = false;
+			Howler.unmute()
 		}
 	});
 	$("#leaveGameBtn").click(function(e) {
@@ -892,8 +908,51 @@ var bmGame = function () {
 			$("#chat > .convo").empty();
 			$("#chatTxt").val("");
 			$("body").css("background-color", "#4D7195"); $("#container").fadeIn();
+			$("#refreshBtn").trigger("click");
 		});
 	});
+	$("#bottomRightPanel").mouseleave(function() {
+		volumeIsClicked = false;
+		volumeSeekerCaption.hide();
+	});
+	
+	// Update volume bar GUI.
+	function updateVolBar(pos) {
+		var seekerPos;
+		if (pos >= 0 && pos <= 54) {
+			if (pos < 3) {
+				seekerPos = 3;
+			} else if (pos > 48) {
+				seekerPos = 48;
+			} else {
+				seekerPos = pos;
+			}
+			var vol = (seekerPos - 3) / 45;
+			var pct = Math.floor(vol * 100) + "%";
+			volumeSeeker.css("left", seekerPos - 3);
+			volumeSeekerCaption.text(pct);
+			Howler.volume(vol);
+			if ($(".soundIcon").hasClass("soundOff")) {
+				$(".soundIcon").trigger("click");
+			}
+		}
+	}
+	$("#bottomRightPanel .soundBar").mousedown(function(e) {
+		volumeIsClicked = true;
+		var pos = e.clientX - $(e.currentTarget).offset().left;
+		volumeSeekerCaption.show();
+		updateVolBar(pos);
+	}).mousemove(function(e) {
+		if (volumeIsClicked) {
+			var pos = e.clientX - $(e.currentTarget).offset().left;
+			volumeSeekerCaption.show();
+			updateVolBar(pos);
+		}
+	}).mouseup(function(e) {
+		volumeIsClicked = false;
+		volumeSeekerCaption.hide();
+	});
+
 	$(document).keyup(function(e) {
 		//console.log(e.keyCode);
 		if (!$("#chatTxt").is(":focus")) {
@@ -945,7 +1004,7 @@ var bmGame = function () {
 				e.preventDefault();
 				if ($("#chatTxt").val().length > 0) {
 					$("#chat > .convo").append('<div><span class="name">' + gameInfo.players[gameInfo.me].name + ':&nbsp;</span><span class="msg">' +  $("#chatTxt").val() + '</span></div>')
-					bmsocket.emit('chatmsg', $("#chatTxt").val());
+					bmsocket.emit('chatmsg', $("#chatTxt").val().substr(0,300));
 					$("#chatTxt").val("");
 					$("#chat > .convo").scrollTop($("#chat > .convo")[0].scrollHeight);
 				}
@@ -1018,7 +1077,10 @@ var bmGame = function () {
 		//console.log(data);
 		for (var sp in data.spawn) {
 			var spInfo = data.spawn[sp];
-			spawnPlayer(spInfo.c, spInfo.pos);	
+			spawnPlayer(spInfo.c, spInfo.pos);
+			if (spInfo.c == gameInfo.me) {
+				$("#playerDiedPopup").hide();
+			}
 		}
 		playSound("spawn");
 		showInventory();
@@ -1088,6 +1150,7 @@ var bmGame = function () {
 	});
 	bmsocket.on('playerDied', function(data) {
 		//console.log(data);
+		// c == color killed, cb == color killed by
 		var p = gameInfo.players[data.c];
 		var cb = gameInfo.players[data.cb];
 		if (data.c == data.cb) {
@@ -1098,6 +1161,9 @@ var bmGame = function () {
 		p.isDead = true;
 		playSound("death");
 		showScores();
+		if (gameInfo.me == data.c) {
+			$("#playerDiedPopup").show();
+		}
 	});
 	bmsocket.on('stopMoving', function(data) {
 		var p = gameInfo.players[data.c];
@@ -1111,28 +1177,32 @@ var bmGame = function () {
 		gameOver();
 	});
 	bmsocket.on('newGame', function(newBoard) {
-		var players = gameInfo.players;
-		for (var player in players) {
-			players[player].noba = 1;
-			players[player].nobp = 0;
-			players[player].expStr = 1;
-			players[player].score = 0;
-			players[player].speed = 30;
-			players[player].isStopped = 1;
+		if (!gameInfo.playing) {
+			var players = gameInfo.players;
+			for (var player in players) {
+				players[player].noba = 1;
+				players[player].nobp = 0;
+				players[player].expStr = 1;
+				players[player].score = 0;
+				players[player].speed = 30;
+				players[player].isStopped = 1;
+			}
+			gameInfo.playing = true;
+			window.requestAnimationFrame(mainRender);
+			showInventory();
+			gameInfo.board = newBoard.map(function(cols) { return cols.split(""); });
 		}
-		gameInfo.playing = true;
-		window.requestAnimationFrame(mainRender);
-		showInventory();
-		gameInfo.board = newBoard.map(function(cols) { return cols.split(""); });
 	});
 	bmsocket.on('playerLeave', function(color) {
 		//console.log(color);
-		gameInfo.players[color].isDead = true;
-		gameInfo.players[color].isDis = true;
-		$("#chat > .convo").append('<div><span class="msg">*** ' + gameInfo.players[color].name + ' has left.</span></div>')
-		$("#chat > .convo").scrollTop($("#chat > .convo")[0].scrollHeight);
-		delete gameInfo.players[color];
-		showScores();
+		if (typeof gameInfo.players[color] !== "undefined") {
+			gameInfo.players[color].isDead = true;
+			gameInfo.players[color].isDis = true;
+			$("#chat > .convo").append('<div><span class="msg">*** ' + gameInfo.players[color].name + ' has left.</span></div>')
+			$("#chat > .convo").scrollTop($("#chat > .convo")[0].scrollHeight);
+			delete gameInfo.players[color];
+			showScores();
+		}
 	});
 	bmsocket.on('chatmsg', function(data) {
 		//console.log(data);

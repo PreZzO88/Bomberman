@@ -36,7 +36,7 @@ body {
 	padding-left: 5px;
 	text-align: left;
 	line-height: 36px;
-	font-family: verdana;
+	font-family: verdana, Kalimati;
 	font-size: 10pt;
 	color: #FFFFFF;
 	border-right: 1px solid #363636;
@@ -80,7 +80,7 @@ body {
 #serverList .servers .server span, #scoreboard .playerList .namescore span {
 	text-align: left;
 	font-size: 10pt;
-	font-family: verdana;
+	font-family: Verdana, Kalimati;
 	color: #EBEEF0;
 	vertical-align: top;
 	line-height:22px;
@@ -150,7 +150,7 @@ input[type=button] {
 	border: 1px solid #000000;
 	outline: none;
 	border-radius: 5px;
-	font-family: verdana;
+	font-family: verdana, Kalimati;
 	font-size: 10pt;
 	color: #EBEEF0;
 	text-shadow: 1px 1px #000000;
@@ -163,7 +163,7 @@ input[type=button]:hover {
 #buttonBar input[type=text] {
 	background-color: #27557A;
 	border-radius: 5px;
-	font-family: verdana;
+	font-family: verdana, Kalimati;
 	border: 1px solid #000000;
 	outline: none;
 	font-size: 10pt;
@@ -182,7 +182,7 @@ input[type=button]:hover {
 }
 #buttonBar #createNewRoomCont label {
 	color: #EBEEF0;
-	font-family: Verdana;
+	font-family: Verdana, Kalimati;
 	font-size: 11pt;
 	display: inline-block;
 	width: 110px;
@@ -247,15 +247,18 @@ input[type=button]:hover {
 }
 #errorBox2 {
 	left: 233px;
-}
-#errorBox {
-	left: 183px;
-}
-#errorBox, #errorBox2 {
-	position: absolute;
 	top: 109px;
 	width: 300px;
 	height: 100px;
+}
+#errorBox {
+	left: 183px;
+	top: 109px;
+	width: 300px;
+	height: 100px;	
+}
+#errorBox, #errorBox2, #gameOverPopup, #playerDiedPopup {
+	position: absolute;
 	display: inline-block;
 	border-radius: 5px;
 	border: 2px solid #363636;
@@ -264,7 +267,7 @@ input[type=button]:hover {
 	display: none;
 }
 #errorBox .errorBoxTxt, #errorBox2 .errorBoxTxt {
-	font-family: verdana;
+	font-family: verdana, Kalimati;
 	font-size: 12pt;
 	color: #000000;
 	text-shadow: -1px -1px #d3d3d3;
@@ -329,22 +332,15 @@ input[type=button]:hover {
 #chat .txtInput #chatTxt:focus {
 	outline-color: #00FFFF;
 }
-#gameOverPopup {
-	position: absolute;
+#gameOverPopup, #playerDiedPopup {
 	top: 156px;
 	left: 233px;
 	width: 300px;
 	height: 69px;
-	display: inline-block;
-	border-radius: 5px;
-	border: 2px solid #363636;
-	background-color: rgba(230,230,230,0.92);
-	padding: 15px;
-	display: none;
 	text-align: center;
 }
-#gameOverPopup span {
-	font-family: verdana;
+#gameOverPopup span, #playerDiedPopup span {
+	font-family: verdana, Kalimati;
 	font-size: 12pt;
 	color: #000000;
 	text-shadow: -1px -1px #d3d3d3;
@@ -370,16 +366,66 @@ input[type=button]:hover {
 	position: absolute;
 	right: 19px;
 	bottom: 12px;
-	width: 170px;
+	width: 171px;
 	height: 28px;
 	text-align: center;
+	-webkit-user-select: none; /* Chrome/Safari */        
+	-moz-user-select: none; /* Firefox */
+	-ms-user-select: none; /* IE10+ */
 }
 #bottomRightPanel input {
 	height: 28px;
 	width: 74px;
-	margin: 0px 0px 0px 20px;
+	margin: 0px 0px 0px 5px;
 }
 #bottomRightPanel .leaveGameCont {
 	display: inline-block;
 	vertical-align: top;
+}
+#bottomRightPanel .soundBar {
+	display: inline-block;
+	width: 54px;
+	height: 28px;
+	position: relative;
+}
+#bottomRightPanel .soundBar .sndtrack {
+	position: absolute;
+	height: 10px;
+	width: 54px;
+	border-radius: 5px;
+	left: 0px;
+	cursor: pointer;
+	box-shadow: 1px 1px 3px #888888;
+	top: 10px;
+	background-color: #3C5975;
+}
+#bottomRightPanel .soundBar .sndseeker {
+	position: absolute;
+	background-color: #C5DEF0;
+	height: 24px;
+	cursor: pointer;
+	border-radius: 5px;
+	border: 1px solid #000000;
+	width: 8px;
+	left: 45px;
+	top: 2px;
+	opacity: 0.80;
+}
+#bottomRightPanel .soundBar .sndseeker span {
+	text-align: center;
+	color: #FFFFFF;
+	font-family: verdana, kalimati;
+	font-size: 8pt;
+	display: none;
+	width: 39px;
+	position: absolute;
+	height: 17px;
+	left: -15px;
+	top: -20px;
+	border-radius: 5px;
+	background-color: #0D1630;
+	line-height: 15px;
+}
+#bottomRightPanel .soundBar .sndseeker:hover {
+	opacity: 1;
 }

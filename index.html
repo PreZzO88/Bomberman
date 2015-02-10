@@ -68,15 +68,22 @@
 				<div id="gameOverPopup">
 					<span>Game Over!<br /><br />New game starting in <span class="newGameTimer">5</span> seconds.</span>
 				</div>
-				<div id="bottomRightPanel">
+				<div id="playerDiedPopup">
+					<span>You are dead!<br /><br />Press <span style="font-weight: bold;">Enter</span> to respawn.</span>
+				</div>
+				<div id="bottomRightPanel" unselectable="on">
 						<div class="soundIcon soundOn" title="Mute Sound"></div>
+						<div class="soundBar" title="Volume">
+							<div class="sndtrack"></div>
+							<div class="sndseeker"><span>100%</span></div>
+						</div>
 						<div class="leaveGameCont"><input type="button" id="leaveGameBtn" value="Leave" /></div>
 				</div>
 				<div id="chat">
 					<div class="convo">
 					</div>
 					<div class="txtInput">
-						<input type="text" id="chatTxt" />
+						<input type="text" id="chatTxt" maxlength=300 />
 					</div>
 				</div>
 			</div>
