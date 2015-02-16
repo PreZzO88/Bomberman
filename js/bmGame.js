@@ -572,19 +572,6 @@ var bmGame = function () {
 	}
 
 
-	// This function is called when user changes direction, once, to avoid sprite shifting position into another block.
-	// For example, walking right until sprite hits a block, sprite changes direction to down, half of body is in wall.
-	// Only called from up and down triggers since sprite is wider than he is thicker. w of [d|u] > w of [l|r]
-	function correctPlayerPosition() {
-		var me = gameInfo.players[gameInfo.me];
-		var x = me.x;
-		var y = me.y;
-		var collisionRight = (isCollision(me.rtp) || isCollision(me.rbp));
-		//console.log(collisionRight + " " + me.rtp.x);
-		if (collisionRight) { x = (Math.floor(((x - gameInfo.boardx) / 30)) * 30) + 21; }
-		return { x: x, y: y };
-	}
-
 	// Possible spawn point locations.
 	function loadSpawnPoints() {
 		gameInfo.spawnPoints[0] = { x: 21, y: 24 };
@@ -759,17 +746,6 @@ var bmGame = function () {
 		goTimer();
 	}
 
-	// Get gameID from URL - Not currently in use.
-	function getGameID() {
-		var params = window.location.search.substring(1).split("&");
-		for (param in params) {
-			var pair = params[param].split("=");
-			if (pair[0] == "gid") {
-				return pair[1];
-			}
-		}
-		return false;
-	}
 	// Show Scoreboard
 	function showScores() {
 		ctx.fillStyle = gameInfo.bgcolor;
@@ -1115,7 +1091,7 @@ var bmGame = function () {
 		}
 	});
 	bmsocket.on('changeDir', function(data) {
-		//console.log(data);
+		//console.log("changeDir: ", data.d);
 		var p = gameInfo.players[data.c];
 		p.x = data.d.x;
 		p.y = data.d.y;
@@ -1167,9 +1143,9 @@ var bmGame = function () {
 	});
 	bmsocket.on('stopMoving', function(data) {
 		var p = gameInfo.players[data.c];
-		//console.log("stopMoving: " + data.d.x);
-		p.x = data.d.x;
-		p.y = data.d.y;
+		//console.log("stopMoving: ", data.d);
+		p.x = (data.d.dir == "l" || data.d.dir == "r" ? Math.floor(data.d.x) : data.d.x);
+		p.y = (data.d.dir == "u" || data.d.dir == "d" ? Math.floor(data.d.y) : data.d.y);
 		p.dir = data.d.dir;
 		p.isStopped = 1;
 	});
@@ -1212,16 +1188,13 @@ var bmGame = function () {
 	bmsocket.on('gameBoard', function(data) {
 		gameInfo.board = data.map(function(cols) { return cols.split(""); });
 	});
-	bmsocket.on('correct', function(data) {
-		//console.log(correct, data);
-		var player = gameInfo.players[gameInfo.me];
-		player.x = data.x;
-		player.y = data.y;
-		player.dir = data.dir;
-	});
+
 	bmsocket.on('abae', function(data) {
 		gameInfo.activeBombs = data.ab.map(function(bomb) { bomb.owner = gameInfo.players[bomb.owner]; return bomb; });
 		gameInfo.activeExplosions = data.ae.map(function(exp) { exp.owner = gameInfo.players[exp.owner]; return exp; });
+	});
+	bmsocket.on('message', function(data) {
+		//console.log("message: " + data);
 	});
 	bmsocket.on('ping', function(data) {
 		bmsocket.emit('pong');
